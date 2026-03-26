@@ -15,11 +15,13 @@ interface MessageListProps {
   onRefresh?: (msg: IModelConversation['conversations'][0], quest: IModelConversation['conversations'][0]['questions'][0], isLast: boolean) => void;
   onChangeVersion?: (conversationId: string, questionId: string, direction: 'prev' | 'next') => void;
   autoScrollEnabled?: boolean;
+  onScroll?: (e: React.UIEvent<HTMLDivElement>) => void;
 }
 
 export function Messages({
   conversations, modelName = "AI Assistant", modelIcon, onRefresh, onChangeVersion,
   autoScrollEnabled = true,
+  onScroll,
 }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -35,7 +37,7 @@ export function Messages({
   }, [conversations, autoScrollEnabled]);
 
   return (
-    <div className="mx-auto px-6 pb-4">
+    <div className="mx-auto h-full w-full max-w-4xl overflow-y-auto px-6 pb-4" onScroll={onScroll}>
       <div className="space-y-6">
         {conversations.map((conversation, index) => {
           return conversation.questions.map((question) => {
@@ -78,10 +80,8 @@ function Message({
 
   const contentRef = useRef<HTMLDivElement>(null);
 
-  const [expandedContent, setExpandedContent] = useState(() => {
-    // Initial state will be updated after first render
-    return true;
-  });
+  const [collapsedContent, setCollapsedContent] = useState(!isNewChat);
+  const [canToggleContent, setCanToggleContent] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const handleCopy = async (content: string, messageId: string) => {
@@ -99,14 +99,18 @@ function Message({
   };
 
   useEffect(() => {
-    // Check content height after render and update expanded state if needed
-    if (contentRef.current) {
-      const height = contentRef.current.getBoundingClientRect().height;
-      if (height < 160) {
-        setExpandedContent(false);
-      }
+    setCollapsedContent(!isNewChat);
+  }, [question.id, isNewChat]);
+
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const shouldToggle = el.scrollHeight > 176;
+    setCanToggleContent(shouldToggle);
+    if (!shouldToggle || isNewChat) {
+      setCollapsedContent(false);
     }
-  }, [activeAnswer?.content])
+  }, [activeAnswer?.content, question.messageChunks, question.mcpToolCalls, isNewChat]);
 
   return (
     <div key={question.id}>
@@ -136,16 +140,7 @@ function Message({
         <div className="flex-1">
           <div
             ref={contentRef}
-            className={`${!isNewChat && expandedContent ? "max-h-40 overflow-hidden" : "overflow-auto"} relative  bg-white/80 backdrop-blur-sm px-4 py-3 rounded-lg border border-gray-100`}>
-            {
-              !isNewChat && expandedContent && (
-                <div
-                  onClick={() => setExpandedContent(false)}
-                  className="bottom-mask flex justify-center items-end cursor-pointer absolute -bottom-px h-14 w-full " style={{ background: "linear-gradient(rgba(255, 255, 255, .4) 9%, rgb(255, 255, 255) 100%)" }}>
-                  <DownCircleOutlined className="text-gray-500 mb-2" />
-                </div>
-              )
-            }
+            className={`${!isNewChat && canToggleContent && collapsedContent ? "max-h-40 overflow-hidden" : "overflow-visible"} relative bg-white/80 backdrop-blur-sm px-4 py-3 rounded-lg border border-gray-100`}>
             {/* 如果是错误状态，显示错误提示 */}
             {activeAnswer?.errorMsg ? (
               <div className="flex items-center gap-2 text-red-500">
@@ -205,6 +200,28 @@ function Message({
                 </div>
               </>
             )}
+            {
+              !isNewChat && canToggleContent && collapsedContent && (
+                <div
+                  onClick={() => setCollapsedContent(false)}
+                  className="bottom-mask z-10 flex justify-center items-end cursor-pointer absolute -bottom-px h-14 w-full"
+                  style={{ background: "linear-gradient(rgba(255, 255, 255, .4) 9%, rgb(255, 255, 255) 100%)" }}
+                >
+                  <DownCircleOutlined className="text-gray-500 mb-2" />
+                </div>
+              )
+            }
+            {
+              !isNewChat && canToggleContent && !collapsedContent && (
+                <button
+                  type="button"
+                  onClick={() => setCollapsedContent(true)}
+                  className="absolute z-10 right-3 bottom-3 rounded-full bg-white/90 p-1 text-gray-500 hover:text-gray-700"
+                >
+                  <DownCircleOutlined className="rotate-180" />
+                </button>
+              )
+            }
           </div>
 
           {/* 统计信息和功能按钮 - 只在有内容或错误时显示 */}

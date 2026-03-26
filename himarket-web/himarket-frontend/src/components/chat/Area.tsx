@@ -24,7 +24,7 @@ interface ChatAreaProps {
   generating: boolean,
   isMcpExecuting: boolean;
   onChangeActiveAnswer: (modelId: string, conversationId: string, questionId: string, direction: 'prev' | 'next') => void
-  onSendMessage: (message: string, mcps: IProductDetail[], enableWebSearch: boolean, modelMap: Map<string, IProductDetail>, attachments: IAttachment[]) => void;
+  onSendMessage: (message: string, mcps: IProductDetail[], enableWebSearch: boolean, modelMap: Map<string, IProductDetail>, attachments: IAttachment[], skills: string[]) => void;
   onSelectProduct: (product: IProductDetail) => void;
   handleGenerateMessage: (ids: {
     modelId: string;
@@ -75,7 +75,6 @@ export function ChatArea(props: ChatAreaProps) {
   const [showModelSelector, setShowModelSelector] = useState(false);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const [showMcpModal, setShowMcpModal] = useState(false);
-  const scrollContainerRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
   // 处理滚动事件，检测用户是否手动向上滚动
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
@@ -319,16 +318,13 @@ export function ChatArea(props: ChatAreaProps) {
 
                 {/* 消息列表 */}
                 <div
-                  className="h-full overflow-auto"
-                  onScroll={handleScroll}
-                  ref={(el) => {
-                    if (el) scrollContainerRefs.current.set(model.id, el);
-                  }}
+                  className="h-full overflow-hidden"
                 >
                   <Messages
                     conversations={model.conversations}
                     onChangeVersion={(...args) => onChangeActiveAnswer(model.id, ...args)}
                     autoScrollEnabled={autoScrollEnabled}
+                    onScroll={handleScroll}
                     modelName={currentModel?.name}
                     onRefresh={(con, quest, isLast) => {
                       setAutoScrollEnabled(isLast);
@@ -393,7 +389,7 @@ export function ChatArea(props: ChatAreaProps) {
       </div>
       {
         modelConversations.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full px-4">
+          <div className="flex flex-col items-center justify-center h-full px-4 pt-[5vh]">
             <div className="max-w-4xl w-full">
               {/* 欢迎标题 */}
               <div className="text-center mb-12">
@@ -412,9 +408,9 @@ export function ChatArea(props: ChatAreaProps) {
               {/* 输入框 */}
               <div className="mb-8">
                 <InputBox
-                  onSendMessage={(c, a) => {
+                  onSendMessage={(c, a, s) => {
                     setAutoScrollEnabled(true);
-                    onSendMessage(c, mcpEnabled ? addedMcps : [], enableWebSearch, modelMap, a)
+                    onSendMessage(c, mcpEnabled ? addedMcps : [], enableWebSearch, modelMap, a, s)
                   }}
                   isLoading={generating}
                   onMcpClick={toggleMcpModal}
@@ -433,18 +429,18 @@ export function ChatArea(props: ChatAreaProps) {
               <SuggestedQuestions
                 onSelectQuestion={(c) => {
                   setAutoScrollEnabled(true);
-                  onSendMessage(c, mcpEnabled ? addedMcps : [], enableWebSearch, modelMap, []);
+                  onSendMessage(c, mcpEnabled ? addedMcps : [], enableWebSearch, modelMap, [], []);
                 }} />
             </div>
           </div>
         ) : (
           <div className="p-4 pb-0">
-            <div className="max-w-3xl mx-auto">
+            <div className="max-w-4xl w-full mx-auto">
               <InputBox
                 onMcpClick={toggleMcpModal}
-                onSendMessage={(c, a) => {
+                onSendMessage={(c, a, s) => {
                   setAutoScrollEnabled(true);
-                  onSendMessage(c, mcpEnabled ? addedMcps : [], enableWebSearch, modelMap, a);
+                  onSendMessage(c, mcpEnabled ? addedMcps : [], enableWebSearch, modelMap, a, s);
                 }}
                 isLoading={generating}
                 mcpEnabled={mcpEnabled}

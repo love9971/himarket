@@ -86,7 +86,9 @@ public abstract class AbstractLlmService implements LlmService {
                                             // Collect answer content
                                             .doOnNext(chatContext::collect),
                                     param.getChatId(),
-                                    chatContext))
+                                    chatContext
+                            )
+                    )
                     // Always emit DONE at the end
                     .concatWith(Flux.defer(() -> {
                         chatContext.stop();

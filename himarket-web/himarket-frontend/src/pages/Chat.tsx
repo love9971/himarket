@@ -70,7 +70,7 @@ function Chat() {
     }
   }, [location, chatType]);
 
-  const handleSendMessage = async (content: string, mcps: IProductDetail[], enableWebSearch: boolean, modelMap: Map<string, IProductDetail>, attachments: IAttachment[] = []) => {
+  const handleSendMessage = async (content: string, mcps: IProductDetail[], enableWebSearch: boolean, modelMap: Map<string, IProductDetail>, attachments: IAttachment[] = [], skills: string[] = []) => {
     if (!selectedModel) {
       antdMessage.error("请先选择一个模型");
       return;
@@ -129,6 +129,7 @@ function Chat() {
           mcpProducts: mcps.map(mcp => mcp.productId),
           enableWebSearch: enableWebSearch ? isSupport : false,
           attachments: attachments.map(a => ({ attachmentId: a.attachmentId })),
+          skills,
         };
 
         let fullContent = '';
@@ -486,6 +487,7 @@ function Chat() {
         mcpProducts: mcps.map(mcp => mcp.productId),
         enableWebSearch: enableWebSearch ? isSupportWebSearch : false,
         attachments: attachments.map(a => ({ attachmentId: a.attachmentId })),
+        skills: [] as string[],
       };
       let fullContent = '';
       let lastIdx = -1;
