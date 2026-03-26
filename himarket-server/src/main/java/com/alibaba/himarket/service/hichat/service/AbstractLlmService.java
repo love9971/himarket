@@ -24,7 +24,9 @@ import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.exception.ChatError;
 import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.dto.result.chat.LlmInvokeResult;
+import com.alibaba.himarket.dto.result.common.DomainResult;
 import com.alibaba.himarket.dto.result.consumer.CredentialContext;
+import com.alibaba.himarket.dto.result.httpapi.HttpRouteResult;
 import com.alibaba.himarket.dto.result.model.ModelConfigResult;
 import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.service.GatewayService;
@@ -34,13 +36,16 @@ import com.alibaba.himarket.support.product.ModelFeature;
 import com.alibaba.himarket.support.product.ProductFeature;
 import com.github.benmanes.caffeine.cache.Cache;
 import io.agentscope.core.model.Model;
-import java.net.URI;
-import java.util.*;
-import java.util.function.Consumer;
-import java.util.function.Function;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.util.UriComponentsBuilder;
 import reactor.core.publisher.Flux;
+
+import java.net.URI;
+import java.util.List;
+import java.util.Optional;
+import java.util.function.Consumer;
+import java.util.function.Function;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -53,8 +58,7 @@ public abstract class AbstractLlmService implements LlmService {
     private final Cache<String, List<URI>> gatewayUriCache = CacheUtil.newCache(5 * 60);
 
     @Override
-    public Flux<ChatEvent> invokeLlm(
-            InvokeModelParam param, Consumer<LlmInvokeResult> resultHandler) {
+    public Flux<ChatEvent> invokeLlm(InvokeModelParam param, Consumer<LlmInvokeResult> resultHandler) {
 
         // Create context to collect answer and usage
         ChatContext chatContext = new ChatContext(param.getChatId());
@@ -70,6 +74,7 @@ public abstract class AbstractLlmService implements LlmService {
 
             // Start estimate time and collect answer
             chatContext.start();
+
             return Flux.concat(
                             // Emit START event
                             Flux.just(ChatEvent.start(param.getChatId())),
@@ -83,14 +88,10 @@ public abstract class AbstractLlmService implements LlmService {
                                     param.getChatId(),
                                     chatContext))
                     // Always emit DONE at the end
-                    .concatWith(
-                            Flux.defer(
-                                    () -> {
-                                        chatContext.stop();
-                                        return Flux.just(
-                                                ChatEvent.done(
-                                                        param.getChatId(), chatContext.getUsage()));
-                                    }))
+                    .concatWith(Flux.defer(() -> {
+                        chatContext.stop();
+                        return Flux.just(ChatEvent.done(param.getChatId(), chatContext.getUsage()));
+                    }))
                     // Unified result handling for all completion scenarios
                     .doFinally(signal -> resultHandler.accept(chatContext.toResult()));
 
@@ -164,6 +165,7 @@ public abstract class AbstractLlmService implements LlmService {
                 .queryParams(credentialContext.copyQueryParams())
                 .gatewayUris(gatewayUris)
                 .mcpConfigs(param.getMcpConfigs())
+                .skills(param.getSkills())
                 .build();
     }
 
@@ -192,10 +194,10 @@ public abstract class AbstractLlmService implements LlmService {
     /**
      * Build URI from model config with flexible path matching.
      *
-     * @param modelConfig    model API configuration
-     * @param gatewayUris    fallback gateway URIs
-     * @param routeKeyword   keyword for route matching (e.g., "/multimodal-generation", "/chat/completions")
-     * @param pathProcessor  function to process the matched path (e.g., strip suffix, keep as-is)
+     * @param modelConfig   model API configuration
+     * @param gatewayUris   fallback gateway URIs
+     * @param routeKeyword  keyword for route matching (e.g., "/multimodal-generation", "/chat/completions")
+     * @param pathProcessor function to process the matched path (e.g., strip suffix, keep as-is)
      * @return constructed URI, or null if failed
      */
     protected URI buildUri(
@@ -211,60 +213,37 @@ public abstract class AbstractLlmService implements LlmService {
         }
 
         // Find matching route by keyword
-        com.alibaba.himarket.dto.result.httpapi.HttpRouteResult route =
-                modelAPIConfig.getRoutes().stream()
-                        .filter(
-                                r ->
-                                        java.util.Optional.ofNullable(r.getMatch())
-                                                .map(
-                                                        com.alibaba.himarket.dto.result.httpapi
-                                                                        .HttpRouteResult
-                                                                        .RouteMatchResult
-                                                                ::getPath)
-                                                .map(
-                                                        com.alibaba.himarket.dto.result.httpapi
-                                                                        .HttpRouteResult
-                                                                        .RouteMatchPath
-                                                                ::getValue)
-                                                .filter(path -> path.contains(routeKeyword))
-                                                .isPresent())
-                        .findFirst()
-                        .orElseGet(() -> modelAPIConfig.getRoutes().get(0));
+        HttpRouteResult route = modelAPIConfig.getRoutes().stream()
+                .filter(r ->
+                        Optional.ofNullable(r.getMatch())
+                                .map(HttpRouteResult.RouteMatchResult::getPath)
+                                .map(HttpRouteResult.RouteMatchPath::getValue)
+                                .filter(path -> path.contains(routeKeyword))
+                                .isPresent()
+                )
+                .findFirst()
+                .orElseGet(() -> modelAPIConfig.getRoutes().get(0));
 
         // Get and process path
-        String path =
-                java.util.Optional.ofNullable(route.getMatch())
-                        .map(
-                                com.alibaba.himarket.dto.result.httpapi.HttpRouteResult
-                                                .RouteMatchResult
-                                        ::getPath)
-                        .map(
-                                com.alibaba.himarket.dto.result.httpapi.HttpRouteResult
-                                                .RouteMatchPath
-                                        ::getValue)
-                        .map(pathProcessor) // Apply path processor
-                        .orElse(routeKeyword);
+        String path = Optional.ofNullable(route.getMatch())
+                .map(HttpRouteResult.RouteMatchResult::getPath)
+                .map(HttpRouteResult.RouteMatchPath::getValue)
+                .map(pathProcessor) // Apply path processor
+                .orElse(routeKeyword);
 
-        org.springframework.web.util.UriComponentsBuilder builder =
-                org.springframework.web.util.UriComponentsBuilder.newInstance();
+        UriComponentsBuilder builder = UriComponentsBuilder.newInstance();
 
         // Try to get public domain first, fallback to first domain
-        com.alibaba.himarket.dto.result.common.DomainResult domain =
-                route.getDomains().stream()
-                        .filter(d -> !StrUtil.equalsIgnoreCase(d.getNetworkType(), "intranet"))
-                        .findFirst()
-                        .orElseGet(
-                                () ->
-                                        ObjectUtil.isNotEmpty(route.getDomains())
-                                                ? route.getDomains().get(0)
-                                                : null);
+        DomainResult domain = route.getDomains().stream()
+                .filter(d -> !StrUtil.equalsIgnoreCase(d.getNetworkType(), "intranet"))
+                .findFirst()
+                .orElseGet(() -> ObjectUtil.isNotEmpty(route.getDomains()) ? route.getDomains().get(0) : null);
 
         if (domain != null) {
-            String protocol =
-                    StrUtil.isNotBlank(domain.getProtocol())
-                            ? domain.getProtocol().toLowerCase()
-                            : "http";
+            String protocol = StrUtil.isNotBlank(domain.getProtocol()) ? domain.getProtocol().toLowerCase() : "http";
+
             builder.scheme(protocol).host(domain.getDomain());
+
             if (domain.getPort() != null && domain.getPort() > 0) {
                 builder.port(domain.getPort());
             }

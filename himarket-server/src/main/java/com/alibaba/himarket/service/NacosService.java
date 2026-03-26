@@ -30,6 +30,7 @@ import com.alibaba.himarket.dto.result.nacos.NacosNamespaceResult;
 import com.alibaba.himarket.dto.result.nacos.NacosResult;
 import com.alibaba.himarket.entity.NacosInstance;
 import com.alibaba.himarket.support.product.NacosRefConfig;
+import com.alibaba.nacos.api.ai.model.skills.Skill;
 import com.alibaba.nacos.maintainer.client.ai.AiMaintainerService;
 import org.springframework.data.domain.Pageable;
 

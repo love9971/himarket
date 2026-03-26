@@ -8,7 +8,7 @@ const monacoEditor = (monacoEditorModule as any).default || monacoEditorModule
 // https://vite.dev/config/
 const env = loadEnv(process.env.NODE_ENV || 'development', process.cwd(), '')
 const apiPrefix = env.VITE_API_BASE_URL
-const tempApiUrl = env.VITE_TEMP_API_URL || 'http://localhost:8080'
+const tempApiUrl = env.VITE_TEMP_API_URL || 'http://localhost:8081'
 
 export default defineConfig({
   plugins: [react({

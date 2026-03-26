@@ -118,7 +118,7 @@ public class ConsumerServiceImpl implements ConsumerService {
         consumer.setDeveloperId(developerId);
         consumer.setPortalId(portal.getPortalId());
 
-        consumerRepository.save(consumer);
+        Consumer save = consumerRepository.save(consumer);
 
         // Initialize credential
         ConsumerCredential credential = initCredential(consumerId);

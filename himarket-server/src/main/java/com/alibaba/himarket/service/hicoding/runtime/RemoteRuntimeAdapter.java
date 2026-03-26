@@ -5,18 +5,6 @@ import com.alibaba.himarket.service.hicoding.filesystem.SidecarFileSystemAdapter
 import com.alibaba.himarket.service.hicoding.sandbox.SandboxType;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
-import java.net.URI;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.time.Duration;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.web.reactive.socket.WebSocketMessage;
@@ -25,6 +13,15 @@ import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.Sinks;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.time.Duration;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 
 /**
  * 远程 Sidecar 运行时适配器。
@@ -293,7 +290,7 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
                                                             msg -> {
                                                                 if (msg.getType()
                                                                         == WebSocketMessage.Type
-                                                                                .PONG) {
+                                                                        .PONG) {
                                                                     return;
                                                                 }
                                                                 String text =
@@ -323,8 +320,8 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
                                                                         == RuntimeStatus.DETACHED) {
                                                                     logger.debug(
                                                                             "[WS-Remote] WS error"
-                                                                                + " during detach"
-                                                                                + " (expected): {}",
+                                                                                    + " during detach"
+                                                                                    + " (expected): {}",
                                                                             err.getMessage());
                                                                     return;
                                                                 }
@@ -345,15 +342,15 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
                                                                         == RuntimeStatus.DETACHED) {
                                                                     logger.debug(
                                                                             "[WS-Remote] WS"
-                                                                                + " completed"
-                                                                                + " during detach"
-                                                                                + " (expected)");
+                                                                                    + " completed"
+                                                                                    + " during detach"
+                                                                                    + " (expected)");
                                                                     return;
                                                                 }
                                                                 logger.warn(
                                                                         "[WS-Remote] Receive stream"
-                                                                            + " completed (sidecar"
-                                                                            + " closed)");
+                                                                                + " completed (sidecar"
+                                                                                + " closed)");
                                                                 status = RuntimeStatus.ERROR;
                                                                 notifyFault(
                                                                         RuntimeFaultNotification
@@ -371,8 +368,8 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
                                                                     msg ->
                                                                             logger.info(
                                                                                     "[WS-Remote]"
-                                                                                        + " Sending:"
-                                                                                        + " {}",
+                                                                                            + " Sending:"
+                                                                                            + " {}",
                                                                                     msg))
                                                             .map(session::textMessage));
 
@@ -422,8 +419,8 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
     private boolean isControlMessage(String text) {
         return text.contains("\"type\":")
                 && (text.contains("\"session_meta\"")
-                        || text.contains("\"buffer_truncated\"")
-                        || text.contains("\"process_exited\""));
+                || text.contains("\"buffer_truncated\"")
+                || text.contains("\"process_exited\""));
     }
 
     /**
@@ -486,7 +483,8 @@ public class RemoteRuntimeAdapter implements RuntimeAdapter {
                                                                                                 StandardCharsets
                                                                                                         .UTF_8)))))
                                         .subscribe(
-                                                unused -> {},
+                                                unused -> {
+                                                },
                                                 err ->
                                                         logger.warn(
                                                                 "[WS-Ping] Failed: {}",

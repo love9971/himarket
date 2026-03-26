@@ -34,21 +34,18 @@ import com.alibaba.himarket.service.hichat.support.LlmChatRequest;
 import com.alibaba.himarket.support.chat.ChatUsage;
 import com.alibaba.himarket.support.enums.AIProtocol;
 import com.alibaba.himarket.support.product.ModelFeature;
-import io.agentscope.core.message.ContentBlock;
-import io.agentscope.core.message.ImageBlock;
-import io.agentscope.core.message.Msg;
-import io.agentscope.core.message.TextBlock;
-import io.agentscope.core.message.URLSource;
+import io.agentscope.core.message.*;
 import io.agentscope.core.model.ChatResponse;
 import io.agentscope.core.model.GenerateOptions;
 import io.agentscope.core.model.Model;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
+
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import reactor.core.publisher.Flux;
 
 @Service
 @Slf4j
@@ -59,8 +56,7 @@ public class DashScopeImageLlmService extends AbstractLlmService {
     }
 
     @Override
-    public Flux<ChatEvent> invokeLlm(
-            InvokeModelParam param, Consumer<LlmInvokeResult> resultHandler) {
+    public Flux<ChatEvent> invokeLlm(InvokeModelParam param, Consumer<LlmInvokeResult> resultHandler) {
 
         // Create context to collect answer and usage
         ChatContext chatContext = new ChatContext(param.getChatId());

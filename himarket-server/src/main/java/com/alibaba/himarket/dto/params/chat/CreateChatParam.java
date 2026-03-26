@@ -23,8 +23,9 @@ import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.Chat;
 import com.alibaba.himarket.support.chat.attachment.ChatAttachmentConfig;
 import jakarta.validation.constraints.NotBlank;
-import java.util.List;
 import lombok.Data;
+
+import java.util.List;
 
 @Data
 public class CreateChatParam implements InputConverter<Chat> {
@@ -73,6 +74,11 @@ public class CreateChatParam implements InputConverter<Chat> {
      * MCP servers to use in chat
      */
     private List<String> mcpProducts;
+
+    /**
+     * Skills to use in chat
+     */
+    private List<String> skills;
 
     /**
      * If need stream

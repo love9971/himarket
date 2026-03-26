@@ -65,9 +65,6 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import jakarta.transaction.Transactional;
-import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -76,6 +73,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -212,6 +213,17 @@ public class ProductServiceImpl implements ProductService {
 
         return PageResult.of(
                 results, page.getNumber() + 1, page.getSize(), page.getTotalElements());
+    }
+
+    /**
+     * List API products
+     *
+     * @param productIds
+     * @return
+     */
+    @Override
+    public List<Product> listProducts(List<String> productIds) {
+        return this.productRepository.findByProductIdIn(productIds);
     }
 
     @Override
@@ -747,7 +759,7 @@ public class ProductServiceImpl implements ProductService {
     /**
      * Fill product config from product reference.
      *
-     * @param product the product result to fill
+     * @param product    the product result to fill
      * @param productRef the product reference containing config data
      */
     private void fillProductConfig(ProductResult product, ProductRef productRef) {
@@ -914,7 +926,7 @@ public class ProductServiceImpl implements ProductService {
      * List products with type-specific filter.
      * Filter is used to match specific properties in Product Config (e.g., ModelAPIConfig, APIConfig).
      *
-     * @param param query parameters including product type and filter
+     * @param param    query parameters including product type and filter
      * @param pageable pagination settings
      * @return paginated product results
      */
@@ -947,8 +959,8 @@ public class ProductServiceImpl implements ProductService {
                                 p ->
                                         StrUtil.isBlank(param.getName())
                                                 || Optional.ofNullable(p.getName())
-                                                        .orElse("")
-                                                        .contains(param.getName()))
+                                                .orElse("")
+                                                .contains(param.getName()))
                         .collect(Collectors.toList());
 
         // Manual pagination
@@ -977,7 +989,7 @@ public class ProductServiceImpl implements ProductService {
      * Check if product matches the type-specific filter
      *
      * @param productRef the product reference containing config data
-     * @param param query parameters containing filter criteria
+     * @param param      query parameters containing filter criteria
      * @return true if product matches the filter, false otherwise
      */
     private boolean matchesFilter(ProductRef productRef, QueryProductParam param) {

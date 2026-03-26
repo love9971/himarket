@@ -36,9 +36,13 @@ import com.alibaba.himarket.dto.result.product.SubscriptionResult;
 import com.alibaba.himarket.entity.Chat;
 import com.alibaba.himarket.entity.ChatAttachment;
 import com.alibaba.himarket.entity.ChatSession;
+import com.alibaba.himarket.entity.Product;
 import com.alibaba.himarket.repository.ChatAttachmentRepository;
 import com.alibaba.himarket.repository.ChatRepository;
-import com.alibaba.himarket.service.*;
+import com.alibaba.himarket.service.ChatSessionService;
+import com.alibaba.himarket.service.ConsumerService;
+import com.alibaba.himarket.service.ProductService;
+import com.alibaba.himarket.service.SkillService;
 import com.alibaba.himarket.service.hichat.support.ChatEvent;
 import com.alibaba.himarket.service.hichat.support.InvokeModelParam;
 import com.alibaba.himarket.support.chat.attachment.ChatAttachmentConfig;
@@ -46,10 +50,10 @@ import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.himarket.support.enums.ChatAttachmentType;
 import com.alibaba.himarket.support.enums.ChatStatus;
 import com.alibaba.himarket.support.enums.ProductType;
+import com.alibaba.himarket.support.product.ProductFeature;
+import com.alibaba.himarket.support.product.SkillConfig;
+import com.alibaba.nacos.api.ai.model.skills.Skill;
 import io.agentscope.core.message.*;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -58,6 +62,10 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
+
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -78,28 +86,27 @@ public class ChatService {
 
     private final ConsumerService consumerService;
 
+    private final SkillService skillService;
+
     public Flux<ChatEvent> chat(CreateChatParam param) {
         performAllChecks(param);
 
         Chat chat = createChat(param);
         InvokeModelParam invokeModelParam = buildInvokeModelParam(param, chat);
-
-        return getLlmService(invokeModelParam)
-                .invokeLlm(invokeModelParam, r -> updateChatResult(chat.getChatId(), r));
+        LlmService llmService = getLlmService(invokeModelParam);
+        return llmService.invokeLlm(invokeModelParam, r -> updateChatResult(chat.getChatId(), r));
     }
 
     private void updateChatResult(String chatId, LlmInvokeResult result) {
-        chatRepository
-                .findByChatId(chatId)
-                .ifPresent(
-                        chat -> {
-                            chat.setAnswer(result.getAnswer());
-                            chat.setStatus(
-                                    result.isSuccess() ? ChatStatus.SUCCESS : ChatStatus.FAILED);
-                            chat.setChatUsage(result.getUsage());
-                            chat.setToolCalls(result.getToolCalls());
-                            chatRepository.save(chat);
-                        });
+        chatRepository.findByChatId(chatId)
+                .ifPresent(chat -> {
+                    chat.setAnswer(result.getAnswer());
+                    chat.setStatus(
+                            result.isSuccess() ? ChatStatus.SUCCESS : ChatStatus.FAILED);
+                    chat.setChatUsage(result.getUsage());
+                    chat.setToolCalls(result.getToolCalls());
+                    chatRepository.save(chat);
+                });
     }
 
     private void performAllChecks(CreateChatParam param) {
@@ -146,14 +153,10 @@ public class ChatService {
         chat.setUserId(contextHolder.getUser());
 
         // Sequence represent the number of tries for this question
-        Integer sequence =
-                chatRepository.findCurrentSequence(
-                        param.getSessionId(),
-                        param.getConversationId(),
-                        param.getQuestionId(),
-                        param.getProductId());
-        chat.setSequence(sequence + 1);
+        Integer sequence = chatRepository.findCurrentSequence(param.getSessionId(), param.getConversationId(),
+                param.getQuestionId(), param.getProductId());
 
+        chat.setSequence(sequence + 1);
         return chatRepository.save(chat);
     }
 
@@ -165,9 +168,11 @@ public class ChatService {
         ProductRefResult productRef = productService.getProductRef(param.getProductId());
         String gatewayId = productRef.getGatewayId();
 
+        //get skills from product config if not specified in request
+        List<Skill> skills = loadSkillsConfig(param);
+
         // Get authentication info
-        CredentialContext credentialContext =
-                consumerService.getDefaultCredential(contextHolder.getUser());
+        CredentialContext credentialContext = consumerService.getDefaultCredential(contextHolder.getUser());
 
         // Build user msg and history msg list which will be passed to model
         List<Msg> historyMsgList = buildHistoryMsgList(param);
@@ -182,8 +187,26 @@ public class ChatService {
                 .enableWebSearch(param.getEnableWebSearch())
                 .gatewayId(gatewayId)
                 .mcpConfigs(buildMCPConfigs(param, credentialContext))
+                .skills(skills)
                 .credentialContext(credentialContext)
                 .build();
+    }
+
+    private List<Skill> loadSkillsConfig(CreateChatParam param) {
+        if (CollUtil.isEmpty(param.getSkills())) {
+            return Collections.emptyList();
+        }
+
+        List<Product> products = this.productService.listProducts(param.getSkills());
+        if (CollUtil.isEmpty(products)) {
+            return Collections.emptyList();
+        }
+
+        return products.stream().map(skillProduct -> {
+            ProductFeature feature = skillProduct.getFeature();
+            SkillConfig skillConfig = feature.getSkillConfig();
+            return this.skillService.getSkillDetail(skillConfig.getNacosId(), skillConfig.getNamespace(), skillConfig.getSkillName());
+        }).collect(Collectors.toList());
     }
 
     public List<Msg> buildHistoryMsgList(CreateChatParam param) {

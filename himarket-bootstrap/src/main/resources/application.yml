@@ -1,8 +1,16 @@
+server:
+  port: 8081
+
+app:
+  flyway:
+    enabled: false
+
 spring:
   datasource:
-    url: jdbc:mariadb://${db.host}:${db.port}/${db.name}?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
-    username: ${db.username}
-    password: ${db.password}
+    url: jdbc:mariadb://10.100.4.227:3306/himarket?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+    #url: jdbc:mariadb://127.0.0.1:3306/portal_db?createDatabaseIfNotExist=true&allowPublicKeyRetrieval=true&useSSL=false&serverTimezone=UTC
+    username: root
+    password: J#^gkD$DZovEj7V6
     driver-class-name: org.mariadb.jdbc.Driver
   jpa:
     hibernate:
@@ -17,11 +25,11 @@ spring:
       max-request-size: 100MB
 
 db:
-   host: ${DB_HOST:localhost}
-   port: ${DB_PORT:3306}
-   name: ${DB_NAME:himarket}
-   username: ${DB_USERNAME:root}
-   password: ${DB_PASSWORD:12345678}
+   host: 10.100.4.227
+   port: 3306
+   name: himarket
+   username: root
+   password: J#^gkD$DZovEj7V6
 
 # Encryptor
 encryption:
@@ -37,21 +45,21 @@ springdoc:
   packages-to-scan: com.alibaba.himarket.controller
 
 jwt:
-  secret: ${JWT_SECRET:YourJWTSecret}
+  secret: f0OnbLf28V4smHhNiokrw1jzotas+pz/as+CwBiHhWQ=
   expiration: 7d
 
 acp:
-  terminal-enabled: ${ACP_TERMINAL_ENABLED:false}
-  default-provider: ${ACP_DEFAULT_PROVIDER:qwen-code}
-  default-runtime: ${ACP_DEFAULT_RUNTIME:remote}
+  terminal-enabled: false
+  default-provider: qwen-code
+  default-runtime: remote
   remote:
-    host: ${ACP_REMOTE_HOST:sandbox-shared}
-    port: ${ACP_REMOTE_PORT:8080}
+    host: localhost
+    port: 8098
   providers:
     qwen-code:
       display-name: Qwen Code
-      command: ${ACP_CLI_COMMAND_QWEN:qwen}
-      args: ${ACP_CLI_ARGS_QWEN:--acp}
+      command: qwen
+      args: --acp
       compatible-runtimes:
         - REMOTE
       supports-custom-model: true
@@ -59,15 +67,15 @@ acp:
       supports-skill: true
     qodercli:
       display-name: Qoder CLI
-      command: ${ACP_CLI_COMMAND_QODERCLI:qodercli}
-      args: ${ACP_CLI_ARGS_QODERCLI:--acp}
+      command: qodercli
+      args: --acp
       compatible-runtimes:
         - REMOTE
       auth-options: default,personal_access_token
       auth-env-var: QODER_PERSONAL_ACCESS_TOKEN
     claude-code:
       display-name: Claude Code
-      command: ${ACP_CLI_COMMAND_CLAUDE:claude-agent-acp}
+      command: claude-agent-acp
       args: ${ACP_CLI_ARGS_CLAUDE:}
       compatible-runtimes:
         - REMOTE
@@ -77,8 +85,8 @@ acp:
       supports-skill: true
     opencode:
       display-name: OpenCode
-      command: ${ACP_CLI_COMMAND_OPENCODE:opencode}
-      args: ${ACP_CLI_ARGS_OPENCODE:acp}
+      command: opencode
+      args: acp
       compatible-runtimes:
         - REMOTE
       supports-custom-model: true
@@ -86,7 +94,7 @@ acp:
       supports-skill: true
 
 observability:
-  log-source: ${OBSERVABILITY_LOG_SOURCE:SLS}
+  log-source: SLS
 
 sls:
   # SLS服务端点（必填）

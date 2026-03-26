@@ -28,30 +28,35 @@ import com.alibaba.himarket.service.hichat.support.ChatBot;
 import com.alibaba.himarket.service.hichat.support.LlmChatRequest;
 import com.alibaba.himarket.service.hichat.support.ToolMeta;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
+import com.alibaba.nacos.api.ai.model.skills.Skill;
 import com.github.benmanes.caffeine.cache.Cache;
 import io.agentscope.core.ReActAgent;
 import io.agentscope.core.memory.InMemoryMemory;
 import io.agentscope.core.memory.Memory;
 import io.agentscope.core.message.Msg;
 import io.agentscope.core.model.Model;
+import io.agentscope.core.skill.AgentSkill;
+import io.agentscope.core.skill.SkillBox;
 import io.agentscope.core.tool.ToolGroup;
 import io.agentscope.core.tool.Toolkit;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import io.agentscope.core.tool.mcp.McpTool;
 import io.modelcontextprotocol.spec.McpSchema;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.RegExUtils;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Async;
+import org.springframework.stereotype.Component;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Async;
-import org.springframework.stereotype.Component;
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 @Slf4j
 @Component
@@ -112,8 +117,7 @@ public class ChatBotManager {
                 // Register mapping relationship
                 int mcpCount = registerToolDependencies(cacheKey, request.getMcpConfigs());
 
-                log.info(
-                        "Created new ChatBot for session: {}, degraded: {}, MCPs: {}",
+                log.info("Created new ChatBot for session: {}, degraded: {}, MCPs: {}",
                         sessionId,
                         chatBot.isDegraded(),
                         mcpCount);
@@ -151,6 +155,11 @@ public class ChatBotManager {
         // Build tool metadata mapping
         Map<String, ToolMeta> toolMetas = buildToolMetas(toolkit);
 
+        // get and register skill tools
+        SkillBox skillBox = new SkillBox(toolkit);
+        registerSkills(skillBox, request);
+
+
         // Initialize memory
         Memory memory = createMemory(request.getHistoryMessages());
         String systemPrompt = buildSystemPrompt(product.getName());
@@ -162,6 +171,7 @@ public class ChatBotManager {
                         .sysPrompt(systemPrompt)
                         .model(model)
                         .toolkit(toolkit)
+                        .skillBox(skillBox)
                         .memory(memory)
                         .maxIters(10)
                         .build();
@@ -180,6 +190,37 @@ public class ChatBotManager {
                 totalTime);
 
         return ChatBot.builder().agent(agent).toolMetas(toolMetas).degraded(degraded).build();
+    }
+
+    /**
+     * Load skill tools into skill box based on request
+     *
+     * @param skillBox
+     * @param request
+     */
+    private void registerSkills(SkillBox skillBox, LlmChatRequest request) {
+        List<Skill> skills = request.getSkills();
+        if (CollUtil.isEmpty(skills)) {
+            return;
+        }
+
+        skills.forEach(skillConfig -> {
+            AgentSkill.Builder builder = AgentSkill.builder()
+                    .name(skillConfig.getName())
+                    .description(skillConfig.getDescription())
+                    .skillContent(skillConfig.getInstruction());
+
+            if (CollUtil.isNotEmpty(skillConfig.getResource())) {
+                skillConfig.getResource().forEach((name, resource) -> {
+                    String resourceIdentifier = resource.getResourceIdentifier();
+                    String path = RegExUtils.replaceFirst(resourceIdentifier, ":", "/");
+                    builder.addResource(path, resource.getContent());
+                });
+            }
+
+            AgentSkill skill = builder.build();
+            skillBox.registerSkill(skill);
+        });
     }
 
     /**
@@ -231,7 +272,7 @@ public class ChatBotManager {
                                                     error ->
                                                             log.error(
                                                                     "Failed to list tools from MCP"
-                                                                        + " server: {}, error: {}",
+                                                                            + " server: {}, error: {}",
                                                                     client.getName(),
                                                                     error.getMessage()))
                                             .onErrorResume(error -> Mono.empty());
@@ -372,7 +413,7 @@ public class ChatBotManager {
      * Maps MCP tool keys to dependent ChatBot for automatic cleanup when tool is removed.
      *
      * @param chatBotCacheKey Cache key of ChatBot to track
-     * @param mcpConfigs List of MCP configs used by ChatBot
+     * @param mcpConfigs      List of MCP configs used by ChatBot
      * @return Number of registered tool dependencies
      */
     private int registerToolDependencies(
@@ -512,6 +553,17 @@ public class ChatBotManager {
                             .sorted()
                             .collect(Collectors.joining(","));
             sb.append(mcpUrls);
+        } else {
+            sb.append("none");
+        }
+
+        // skills
+        sb.append("skills:");
+        if (CollUtil.isNotEmpty(request.getSkills())) {
+            request.getSkills().forEach(skill -> {
+                String format = String.format("%s~%s", skill.getNamespaceId(), skill.getName());
+                sb.append(format);
+            });
         } else {
             sb.append("none");
         }

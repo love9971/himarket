@@ -2,13 +2,15 @@ package com.alibaba.himarket.service.hichat.support;
 
 import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
+import com.alibaba.nacos.api.ai.model.skills.Skill;
 import io.agentscope.core.message.Msg;
-import java.net.URI;
-import java.util.List;
-import java.util.Map;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+
+import java.net.URI;
+import java.util.List;
+import java.util.Map;
 
 @Builder
 @Slf4j
@@ -74,4 +76,9 @@ public class LlmChatRequest {
      * MCP servers with transport config
      */
     private List<MCPTransportConfig> mcpConfigs;
+
+    /**
+     * Skills, if not empty, use these skills to resolve agent planning
+     */
+    private List<Skill> skills;
 }

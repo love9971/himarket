@@ -69,11 +69,12 @@ public class ContextHolder {
      */
     private UserType getCurrentUserType() {
         Authentication authentication = getAuthenticationFromContext();
+        //                    return EnumUtil.likeValueOf(UserType.class, role);
         return authentication.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .filter(authority -> authority.startsWith(CommonConstants.ROLE_PREFIX))
                 .map(authority -> authority.substring(5))
-                .map(role -> EnumUtil.likeValueOf(UserType.class, role))
+                .map(UserType::valueOf)
                 .findFirst()
                 .orElseThrow(
                         () ->

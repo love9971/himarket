@@ -17,7 +17,7 @@ export default defineConfig({
     port: 5174,
     proxy: {
       [apiPrefix]: {
-        target: "http://localhost:8080",
+        target: "http://localhost:8081",
         changeOrigin: true,
         rewrite: path => path.replace(new RegExp(`^${apiPrefix}`), ""),
       },
