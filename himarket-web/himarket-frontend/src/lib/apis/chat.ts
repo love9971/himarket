@@ -83,7 +83,7 @@ export interface IToolCall {
   id: string; // 工具调用唯一 ID
   type: string; // 通常为 "function"
   name: string; // 工具函数名
-  arguments: string; // 工具参数 (JSON string)
+  arguments: string | Record<string, unknown>; // 工具参数
   mcpServerName?: string; // MCP server 名称
 }
 

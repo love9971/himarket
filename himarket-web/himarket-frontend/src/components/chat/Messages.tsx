@@ -83,6 +83,7 @@ function Message({
   const [collapsedContent, setCollapsedContent] = useState(!isNewChat);
   const [canToggleContent, setCanToggleContent] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [expandedThinkingIds, setExpandedThinkingIds] = useState<Set<string>>(new Set());
 
   const handleCopy = async (content: string, messageId: string) => {
     copyToClipboard(content).then(() => {
@@ -98,8 +99,21 @@ function Message({
     return `${(ms / 1000).toFixed(2)}s`;
   };
 
+  const toggleThinking = (chunkId: string) => {
+    setExpandedThinkingIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(chunkId)) {
+        next.delete(chunkId);
+      } else {
+        next.add(chunkId);
+      }
+      return next;
+    });
+  };
+
   useEffect(() => {
     setCollapsedContent(!isNewChat);
+    setExpandedThinkingIds(new Set());
   }, [question.id, isNewChat]);
 
   useEffect(() => {
@@ -146,19 +160,47 @@ function Message({
               <div className="flex items-center gap-2 text-red-500">
                 <span>{activeAnswer?.errorMsg || '网络异常，请重试'}</span>
               </div>
-            ) : conversation.loading ? (
-              /* 如果内容为空且正在加载，显示 loading */
-              <div className="flex items-center gap-2 text-gray-500">
-                <div className="flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 bg-colorPrimary rounded-full" style={{ animation: 'bounceStrong 1s infinite', animationDelay: '0ms' }}></span>
-                  <span className="w-1.5 h-1.5 bg-colorPrimary rounded-full" style={{ animation: 'bounceStrong 1s infinite', animationDelay: '150ms' }}></span>
-                  <span className="w-1.5 h-1.5 bg-colorPrimary rounded-full" style={{ animation: 'bounceStrong 1s infinite', animationDelay: '300ms' }}></span>
-                </div>
-              </div>
             ) : question.messageChunks && question.messageChunks.length > 0 ? (
               /* 新逻辑：按 messageChunks 顺序渲染 */
               <div className="space-y-3">
-                {question.messageChunks.map((chunk) => {
+                {question.messageChunks.map((chunk, chunkIndex) => {
+                  if (chunk.type === 'thinking' && chunk.content) {
+                    const isThinkingActive = conversation.loading && chunkIndex === (question.messageChunks?.length || 0) - 1;
+                    const isExpanded = expandedThinkingIds.has(chunk.id);
+                    const normalized = chunk.content.replace(/\s+/g, " ").trim();
+                    const summary = normalized.length > 80 ? `${normalized.slice(0, 80)}...` : normalized || "思考中";
+                    return (
+                      <div key={chunk.id} className="rounded-lg border border-amber-200 bg-gradient-to-b from-amber-50 to-orange-50 px-3 py-2">
+                        <div className="mb-1 flex items-center justify-between gap-2 text-xs text-amber-700">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 font-medium">
+                              思考
+                            </span>
+                            {!isThinkingActive && (
+                              <span className="text-amber-700/80">{summary}</span>
+                            )}
+                          </div>
+                          {isThinkingActive && (
+                            <span className="text-amber-600">思考中...</span>
+                          )}
+                          {!isThinkingActive && (
+                            <button
+                              type="button"
+                              className="text-amber-700 hover:text-amber-900"
+                              onClick={() => toggleThinking(chunk.id)}
+                            >
+                              {isExpanded ? "收起" : "展开"}
+                            </button>
+                          )}
+                        </div>
+                        {(isThinkingActive || isExpanded) && (
+                          <div className="whitespace-pre-wrap text-sm leading-relaxed text-amber-800">
+                            {chunk.content}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  }
                   if (chunk.type === 'text' && chunk.content) {
                     return (
                       <div key={chunk.id} className="prose">
@@ -182,6 +224,23 @@ function Message({
                   // tool_result 已在 tool_call 中处理，跳过
                   return null;
                 })}
+                {conversation.loading && (
+                  <div className="flex items-center gap-2 text-gray-500">
+                    <div className="flex items-center gap-1">
+                      <span className="w-1.5 h-1.5 bg-colorPrimary rounded-full" style={{ animation: 'bounceStrong 1s infinite', animationDelay: '0ms' }}></span>
+                      <span className="w-1.5 h-1.5 bg-colorPrimary rounded-full" style={{ animation: 'bounceStrong 1s infinite', animationDelay: '150ms' }}></span>
+                      <span className="w-1.5 h-1.5 bg-colorPrimary rounded-full" style={{ animation: 'bounceStrong 1s infinite', animationDelay: '300ms' }}></span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : conversation.loading ? (
+              <div className="flex items-center gap-2 text-gray-500">
+                <div className="flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 bg-colorPrimary rounded-full" style={{ animation: 'bounceStrong 1s infinite', animationDelay: '0ms' }}></span>
+                  <span className="w-1.5 h-1.5 bg-colorPrimary rounded-full" style={{ animation: 'bounceStrong 1s infinite', animationDelay: '150ms' }}></span>
+                  <span className="w-1.5 h-1.5 bg-colorPrimary rounded-full" style={{ animation: 'bounceStrong 1s infinite', animationDelay: '300ms' }}></span>
+                </div>
               </div>
             ) : (
               /* 旧逻辑：兼容历史数据 */

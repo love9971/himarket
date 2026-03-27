@@ -218,6 +218,42 @@ function Chat() {
             body: JSON.stringify(messagePayload),
           },
           {
+            onThinking: (thinking) => {
+              setModelConversation((prev) => {
+                return prev.map(model => {
+                  if (model.id !== modelId) return model;
+                  return {
+                    ...model,
+                    conversations: model.conversations.map(con => {
+                      if (con.id !== conversationId) return con;
+                      return {
+                        ...con,
+                        questions: con.questions.map(question => {
+                          if (question.id !== questionId) return question;
+                          const chunks = question.messageChunks || [];
+                          const lastChunk = chunks[chunks.length - 1];
+                          const newChunks = lastChunk && lastChunk.type === 'thinking'
+                            ? chunks.map((c, i) =>
+                              i === chunks.length - 1
+                                ? { ...c, content: (c.content || '') + thinking }
+                                : c
+                            )
+                            : [...chunks, {
+                              id: `chunk-thinking-${Date.now()}`,
+                              type: 'thinking' as const,
+                              content: thinking
+                            }];
+                          return {
+                            ...question,
+                            messageChunks: newChunks
+                          }
+                        })
+                      };
+                    })
+                  };
+                });
+              });
+            },
             onToolCall: (toolCall) => {
               setIsMcpExecuting(true);
               setModelConversation((prev) => {
@@ -528,6 +564,42 @@ function Chat() {
           },
           body: JSON.stringify(messagePayload),
         }, {
+        onThinking: (thinking) => {
+          setModelConversation((prev) => {
+            return prev.map(model => {
+              if (model.id !== modelId) return model;
+              return {
+                ...model,
+                conversations: model.conversations.map(con => {
+                  if (con.id !== conversationId) return con;
+                  return {
+                    ...con,
+                    questions: con.questions.map(question => {
+                      if (question.id !== questionId) return question;
+                      const chunks = question.messageChunks || [];
+                      const lastChunk = chunks[chunks.length - 1];
+                      const newChunks = lastChunk && lastChunk.type === 'thinking'
+                        ? chunks.map((c, i) =>
+                          i === chunks.length - 1
+                            ? { ...c, content: (c.content || '') + thinking }
+                            : c
+                        )
+                        : [...chunks, {
+                          id: `chunk-thinking-${Date.now()}`,
+                          type: 'thinking' as const,
+                          content: thinking
+                        }];
+                      return {
+                        ...question,
+                        messageChunks: newChunks
+                      }
+                    })
+                  };
+                })
+              };
+            });
+          });
+        },
         onToolCall: (toolCall) => {
           setIsMcpExecuting(true);
           setModelConversation((prev) => {

@@ -328,7 +328,7 @@ export interface IMcpToolCall {
   id: string;
   type: string;
   name: string;
-  arguments: string;
+  arguments: string | Record<string, unknown>;
   mcpServerName?: string;
 }
 
@@ -344,7 +344,7 @@ export interface IMcpToolResponse {
 }
 
 // 消息片段类型 - 用于按顺序展示消息内容和工具调用
-export type MessageChunkType = 'text' | 'tool_call' | 'tool_result';
+export type MessageChunkType = 'text' | 'thinking' | 'tool_call' | 'tool_result';
 
 // 消息片段 - 按 SSE 事件顺序存储
 export interface IMessageChunk {

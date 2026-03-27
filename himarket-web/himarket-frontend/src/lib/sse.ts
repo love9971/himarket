@@ -75,6 +75,7 @@ export interface OpenAIChunk {
 
 export interface SSEOptions {
   onStart?: (chatId: string) => void;
+  onThinking?: (content: string, chatId: string) => void;
   onChunk?: (content: string, chatId: string) => void;
   onToolCall?: (toolCall: IToolCall, chatId: string, usage?: IChatUsage) => void;
   onToolResponse?: (toolResponse: IToolResponse, chatId: string, usage?: IChatUsage) => void;
@@ -178,7 +179,9 @@ export async function handleSSEStream(
                   break;
 
                 case 'THINKING':
-                  // Thinking process - temporarily ignored
+                  if (typeof event.content === 'string' && event.chatId) {
+                    callbacks.onThinking?.(event.content, event.chatId);
+                  }
                   break;
 
                 case 'TOOL_CALL':
