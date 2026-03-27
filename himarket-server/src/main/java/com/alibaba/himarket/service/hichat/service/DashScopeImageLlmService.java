@@ -38,13 +38,14 @@ import io.agentscope.core.message.*;
 import io.agentscope.core.model.ChatResponse;
 import io.agentscope.core.model.GenerateOptions;
 import io.agentscope.core.model.Model;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Service;
+import reactor.core.publisher.Flux;
+
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.stereotype.Service;
-import reactor.core.publisher.Flux;
 
 @Service
 @Slf4j
@@ -103,7 +104,7 @@ public class DashScopeImageLlmService extends AbstractLlmService {
                     e);
             ChatError chatError = ChatError.from(e);
             chatContext.fail();
-            chatContext.appendAnswer("[Image generation failed: " + e.getMessage() + "]");
+            chatContext.appendAnswer(e.getMessage(), ChatEvent.EventType.ERROR);
             resultHandler.accept(chatContext.toResult());
 
             return Flux.just(
@@ -130,8 +131,7 @@ public class DashScopeImageLlmService extends AbstractLlmService {
                                     chatId,
                                     error);
                             chatContext.fail();
-                            chatContext.appendAnswer(
-                                    "\n[Image generation error: " + error.getMessage() + "]");
+                            chatContext.appendAnswer(error.getMessage(), ChatEvent.EventType.ERROR);
                         })
                 .onErrorResume(
                         error -> {

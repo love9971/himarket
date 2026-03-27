@@ -104,7 +104,7 @@ public abstract class AbstractLlmService implements LlmService {
             log.error("Failed to process chat request for chatId: {}", param.getChatId(), e);
             ChatError chatError = ChatError.from(e);
             chatContext.fail();
-            chatContext.appendAnswer(e.getMessage());
+            chatContext.appendAnswer(e.getMessage(), ChatEvent.EventType.ERROR);
             resultHandler.accept(chatContext.toResult());
 
             return Flux.just(
@@ -128,8 +128,7 @@ public abstract class AbstractLlmService implements LlmService {
                         error -> {
                             log.error("Chat stream encountered error, chatId: {}", chatId, error);
                             chatContext.fail();
-                            chatContext.appendAnswer(
-                                    "\n[Sorry, an error occurred: " + error.getMessage() + "]");
+                            chatContext.appendAnswer(error.getMessage(), ChatEvent.EventType.ERROR);
                         })
                 .onErrorResume(
                         error -> {

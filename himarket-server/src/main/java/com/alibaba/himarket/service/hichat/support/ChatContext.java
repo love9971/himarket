@@ -1,14 +1,17 @@
 package com.alibaba.himarket.service.hichat.support;
 
+import com.alibaba.fastjson.JSON;
 import com.alibaba.himarket.dto.result.chat.LlmInvokeResult;
 import com.alibaba.himarket.support.chat.ChatUsage;
 import com.alibaba.himarket.support.chat.ToolCallInfo;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Data
@@ -20,9 +23,16 @@ public class ChatContext {
     private final String chatId;
 
     /**
-     * Answer content
+     * sort
      */
-    private final StringBuilder answerContent = new StringBuilder();
+    private List<ChatContent> contents = new ArrayList<>();
+
+    /**
+     * 计数器
+     */
+    private ChatEvent.EventType currentEventType = null;
+
+    private ChatContent currentContent = null;
 
     /**
      * Chat usage (tokens)
@@ -102,21 +112,70 @@ public class ChatContext {
             return;
         }
 
+        if (this.currentEventType == null) {
+            this.currentEventType = event.getType();
+        }
+
+        if (this.currentEventType != event.getType()) {
+            if (
+                    (
+                            this.currentEventType == ChatEvent.EventType.TOOL_CALL
+                                    ||
+                                    this.currentEventType == ChatEvent.EventType.TOOL_RESULT
+                    )
+                            &&
+                            (
+                                    event.getType() == ChatEvent.EventType.TOOL_CALL
+                                            ||
+                                            event.getType() == ChatEvent.EventType.TOOL_RESULT
+                            )
+
+            ) {
+                // nothing to do
+            } else if (this.currentContent != null) {
+                this.contents.add(this.currentContent);
+                this.currentContent = null;
+                this.currentEventType = event.getType();
+            }
+        }
+
+
         switch (event.getType()) {
             case ASSISTANT:
-            case THINKING:
+                if (this.currentContent == null) {
+                    this.currentContent = new ChatContent(new StringBuilder(), event.getType());
+                }
+
                 // Accumulate assistant response and thinking content
                 if (event.getContent() != null) {
                     // Record first byte arrival time
                     recordFirstByteTimeout();
-                    answerContent.append(event.getContent());
+                    StringBuilder content = (StringBuilder) this.currentContent.getContent();
+                    content.append(event.getContent());
+                }
+                break;
+
+            case THINKING:
+                if (this.currentContent == null) {
+                    this.currentContent = new ChatContent(new StringBuilder(), event.getType());
+                }
+
+                // Accumulate assistant response and thinking content
+                if (event.getContent() != null) {
+                    // Record first byte arrival time
+                    recordFirstByteTimeout();
+                    StringBuilder content = (StringBuilder) this.currentContent.getContent();
+                    content.append(event.getContent());
                 }
                 break;
 
             case TOOL_CALL:
+                if (this.currentContent == null) {
+                    this.currentContent = new ChatContent(event.getType());
+                }
+
                 // Collect tool call information
-                if (event.getContent() instanceof ChatEvent.ToolCallContent) {
-                    ChatEvent.ToolCallContent tc = (ChatEvent.ToolCallContent) event.getContent();
+                if (event.getContent() instanceof ChatEvent.ToolCallContent tc) {
                     ToolCallInfo toolCallInfo =
                             ToolCallInfo.builder()
                                     .id(tc.getId())
@@ -125,17 +184,27 @@ public class ChatContext {
                                     .mcpServerName(tc.getMcpServerName())
                                     .build();
                     toolCallMap.put(tc.getId(), toolCallInfo);
+
+                    if (currentContent.getContent() == null) {
+                        currentContent.setContent(toolCallInfo);
+                    }
                 }
                 break;
 
             case TOOL_RESULT:
+                if (this.currentContent == null) {
+                    this.currentContent = new ChatContent(event.getType());
+                }
+
                 // Update tool call with result
-                if (event.getContent() instanceof ChatEvent.ToolResultContent) {
-                    ChatEvent.ToolResultContent tr =
-                            (ChatEvent.ToolResultContent) event.getContent();
+                if (event.getContent() instanceof ChatEvent.ToolResultContent tr) {
                     ToolCallInfo toolCallInfo = toolCallMap.get(tr.getId());
                     if (toolCallInfo != null) {
                         toolCallInfo.setResult(tr.getResult());
+
+                        if (currentContent.getContent() == null) {
+                            currentContent.setContent(toolCallInfo);
+                        }
                     }
                 }
                 break;
@@ -144,10 +213,15 @@ public class ChatContext {
                 break;
 
             case ERROR:
+                if (this.currentContent == null) {
+                    this.currentContent = new ChatContent(new StringBuilder(), event.getType());
+                }
+
                 // Mark as failed
                 this.success = false;
                 if (event.getMessage() != null) {
-                    answerContent.append("\n[Error: ").append(event.getMessage()).append("]");
+                    StringBuilder content = (StringBuilder) this.currentContent.getContent();
+                    content.append(event.getMessage());
                 }
                 break;
 
@@ -162,9 +236,10 @@ public class ChatContext {
      *
      * @param content Content to append
      */
-    public void appendAnswer(String content) {
+    public void appendAnswer(String content, ChatEvent.EventType type) {
         if (content != null) {
-            answerContent.append(content);
+            ChatContent chatContent = new ChatContent(content, type);
+            this.contents.add(chatContent);
         }
     }
 
@@ -174,7 +249,12 @@ public class ChatContext {
      * @return Complete answer as string
      */
     public String getAnswer() {
-        return answerContent.toString();
+        if (this.currentContent != null) {
+            this.contents.add(this.currentContent);
+        }
+
+        List<String> collect = contents.stream().map(JSON::toJSONString).collect(Collectors.toList());
+        return JSON.toJSONString(collect);
     }
 
     /**
@@ -206,11 +286,27 @@ public class ChatContext {
                 .success(success)
                 .answer(getAnswer())
                 .usage(usage)
-                .toolCalls(getToolCalls())
+//                .toolCalls(getToolCalls())
                 .build();
     }
 
     public void fail() {
         this.success = false;
+    }
+
+
+    @Data
+    public static class ChatContent {
+        private Object content;
+        private ChatEvent.EventType eventType;
+
+        public ChatContent(ChatEvent.EventType eventType) {
+            this.eventType = eventType;
+        }
+
+        public ChatContent(Object content, ChatEvent.EventType eventType) {
+            this.content = content;
+            this.eventType = eventType;
+        }
     }
 }

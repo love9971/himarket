@@ -6,12 +6,13 @@ import io.agentscope.core.agent.EventType;
 import io.agentscope.core.agent.StreamOptions;
 import io.agentscope.core.memory.Memory;
 import io.agentscope.core.message.Msg;
-import java.util.List;
-import java.util.Map;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
+
+import java.util.List;
+import java.util.Map;
 
 @Slf4j
 @Data
@@ -27,12 +28,14 @@ public class ChatBot {
     /**
      * Whether this ChatBot is in degraded mode (some MCP tools failed to initialize)
      */
-    @Builder.Default private boolean degraded = false;
+    @Builder.Default
+    private boolean degraded = false;
 
     /**
      * Timestamp when this ChatBot was created
      */
-    @Builder.Default private long createTime = System.currentTimeMillis();
+    @Builder.Default
+    private long createTime = System.currentTimeMillis();
 
     public Flux<Event> chat(Msg userMsg) {
         // Truncate memory before adding new messages
@@ -44,7 +47,7 @@ public class ChatBot {
                         .incremental(true)
                         .includeReasoningChunk(true)
                         // Exclude complete result to avoid duplication
-                        .includeReasoningResult(true)
+                        .includeReasoningResult(false)
                         .build();
         return agent.stream(userMsg, streamOptions);
     }

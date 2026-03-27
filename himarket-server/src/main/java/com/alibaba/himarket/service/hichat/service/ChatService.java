@@ -105,7 +105,7 @@ public class ChatService {
                             chat.setStatus(
                                     result.isSuccess() ? ChatStatus.SUCCESS : ChatStatus.FAILED);
                             chat.setChatUsage(result.getUsage());
-                            chat.setToolCalls(result.getToolCalls());
+//                            chat.setToolCalls(result.getToolCalls());
                             chatRepository.save(chat);
                         });
     }
