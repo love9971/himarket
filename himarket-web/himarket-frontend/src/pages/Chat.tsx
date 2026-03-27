@@ -357,6 +357,7 @@ function Chat() {
                             return {
                               ...question,
                               messageChunks: newChunks,
+                              answerMessageChunks: [newChunks],
                               answers: [
                                 {
                                   errorMsg: "",
@@ -541,7 +542,22 @@ function Chat() {
                 questions: con.questions.map(question => (
                   {
                     ...question,
-                    isNewQuestion: question.id === questionId ? true : question.isNewQuestion
+                    isNewQuestion: question.id === questionId ? true : question.isNewQuestion,
+                    ...(question.id === questionId ? (() => {
+                      const answerMessageChunks = [...(question.answerMessageChunks || [])];
+                      if (
+                        question.activeAnswerIndex >= 0
+                        && !answerMessageChunks[question.activeAnswerIndex]
+                        && question.messageChunks
+                        && question.messageChunks.length > 0
+                      ) {
+                        answerMessageChunks[question.activeAnswerIndex] = question.messageChunks;
+                      }
+                      return {
+                        answerMessageChunks,
+                        messageChunks: [] as IMessageChunk[],
+                      };
+                    })() : {})
                   }
                 ))
               };
@@ -752,6 +768,12 @@ function Chat() {
                       return {
                         ...question,
                         activeAnswerIndex: question.answers.length - 1,
+                        answerMessageChunks: (() => {
+                          const answerMessageChunks = [...(question.answerMessageChunks || [])];
+                          const answerIndex = Math.max(question.answers.length - 1, 0);
+                          answerMessageChunks[answerIndex] = question.messageChunks || [];
+                          return answerMessageChunks;
+                        })(),
                         answers: question.answers.map((answer, idx) => {
                           if (idx === question.answers.length - 1) {
                             return {
@@ -852,6 +874,7 @@ function Chat() {
                     return {
                       ...question,
                       activeAnswerIndex: newIndex,
+                      messageChunks: question.answerMessageChunks?.[newIndex] || question.messageChunks,
                     };
                   }
                   return question;
@@ -917,6 +940,79 @@ function Chat() {
                       result: tc.result,
                     }));
 
+                  const activeAnswerRecord = (activeAnswer || {}) as unknown as Record<string, unknown>;
+                  const possibleThinking = [
+                    activeAnswerRecord.thinking,
+                    activeAnswerRecord.reasoning,
+                    activeAnswerRecord.reasoningContent,
+                    activeAnswerRecord.reasoningText,
+                    activeAnswerRecord.thought,
+                  ];
+                  let historyThinking = possibleThinking.find(
+                    value => typeof value === "string" && value.trim().length > 0
+                  ) as string | undefined;
+                  let historyTextContent = activeAnswer?.content || "";
+
+                  if (!historyThinking && historyTextContent) {
+                    const thinkMatches = [...historyTextContent.matchAll(/<think>([\s\S]*?)<\/think>/gi)];
+                    if (thinkMatches.length > 0) {
+                      historyThinking = thinkMatches
+                        .map(match => match[1]?.trim() || "")
+                        .filter(Boolean)
+                        .join("\n\n");
+                      historyTextContent = historyTextContent
+                        .replace(/<think>[\s\S]*?<\/think>/gi, "")
+                        .trim();
+                    }
+                  }
+
+                  const historyChunks: IMessageChunk[] = [];
+                  if (historyThinking) {
+                    historyChunks.push({
+                      id: `history-thinking-${question.questionId}`,
+                      type: "thinking",
+                      content: historyThinking,
+                    });
+                  }
+
+                  mcpToolCalls.forEach((toolCall, index) => {
+                    historyChunks.push({
+                      id: `history-tool-call-${question.questionId}-${index}`,
+                      type: "tool_call",
+                      toolCall,
+                    });
+                    const matchedResponse = mcpToolResponses.find(resp => resp.id === toolCall.id);
+                    if (matchedResponse) {
+                      historyChunks.push({
+                        id: `history-tool-result-${question.questionId}-${index}`,
+                        type: "tool_result",
+                        toolResult: matchedResponse,
+                      });
+                    }
+                  });
+
+                  if (historyTextContent) {
+                    historyChunks.push({
+                      id: `history-text-${question.questionId}`,
+                      type: "text",
+                      content: historyTextContent,
+                    });
+                  }
+
+                  const answerMessageChunks: IMessageChunk[][] = question.answers.map((answer, idx) => {
+                    if (idx === activeAnswerIndex) {
+                      return historyChunks;
+                    }
+                    if (!answer.content) {
+                      return [];
+                    }
+                    return [{
+                      id: `history-text-${question.questionId}-${idx}`,
+                      type: "text",
+                      content: answer.content,
+                    }];
+                  });
+
                   return {
                     id: question.questionId,
                     content: question.content,
@@ -926,6 +1022,8 @@ function Chat() {
                     attachments: question.attachments,
                     mcpToolCalls: mcpToolCalls.length > 0 ? mcpToolCalls : undefined,
                     mcpToolResponses: mcpToolResponses.length > 0 ? mcpToolResponses : undefined,
+                    messageChunks: historyChunks.length > 0 ? historyChunks : undefined,
+                    answerMessageChunks: answerMessageChunks.length > 0 ? answerMessageChunks : undefined,
                     answers: question.answers.map(answer => {
                       return {
                         errorMsg: "",

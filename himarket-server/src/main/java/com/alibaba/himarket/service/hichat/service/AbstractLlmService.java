@@ -36,15 +36,16 @@ import com.alibaba.himarket.support.product.ModelFeature;
 import com.alibaba.himarket.support.product.ProductFeature;
 import com.github.benmanes.caffeine.cache.Cache;
 import io.agentscope.core.model.Model;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.util.UriComponentsBuilder;
+import reactor.core.publisher.Flux;
+
 import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.util.UriComponentsBuilder;
-import reactor.core.publisher.Flux;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -103,7 +104,7 @@ public abstract class AbstractLlmService implements LlmService {
             log.error("Failed to process chat request for chatId: {}", param.getChatId(), e);
             ChatError chatError = ChatError.from(e);
             chatContext.fail();
-            chatContext.appendAnswer("[Sorry, something went wrong: " + e.getMessage() + "]");
+            chatContext.appendAnswer(e.getMessage());
             resultHandler.accept(chatContext.toResult());
 
             return Flux.just(

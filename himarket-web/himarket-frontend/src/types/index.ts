@@ -373,6 +373,7 @@ export interface IModelConversation {
       mcpToolCalls?: IMcpToolCall[];
       mcpToolResponses?: IMcpToolResponse[];
       messageChunks?: IMessageChunk[];  // 按顺序的消息片段
+      answerMessageChunks?: IMessageChunk[][]; // 每个答案版本对应的消息片段
       isNewQuestion?: boolean;
       answers: {
         errorMsg: string;

@@ -126,6 +126,25 @@ function Message({
     }
   }, [activeAnswer?.content, question.messageChunks, question.mcpToolCalls, isNewChat]);
 
+  const displayChunks = (() => {
+    const chunks = question.messageChunks || [];
+    const seenThinking = new Set<string>();
+    return chunks.filter((chunk) => {
+      if (chunk.type !== "thinking" || !chunk.content) {
+        return true;
+      }
+      const normalized = chunk.content.replace(/\s+/g, " ").trim();
+      if (!normalized) {
+        return false;
+      }
+      if (seenThinking.has(normalized)) {
+        return false;
+      }
+      seenThinking.add(normalized);
+      return true;
+    });
+  })();
+
   return (
     <div key={question.id}>
       <div className="flex justify-end">
@@ -160,12 +179,12 @@ function Message({
               <div className="flex items-center gap-2 text-red-500">
                 <span>{activeAnswer?.errorMsg || '网络异常，请重试'}</span>
               </div>
-            ) : question.messageChunks && question.messageChunks.length > 0 ? (
+            ) : displayChunks.length > 0 ? (
               /* 新逻辑：按 messageChunks 顺序渲染 */
               <div className="space-y-3">
-                {question.messageChunks.map((chunk, chunkIndex) => {
+                {displayChunks.map((chunk, chunkIndex) => {
                   if (chunk.type === 'thinking' && chunk.content) {
-                    const isThinkingActive = conversation.loading && chunkIndex === (question.messageChunks?.length || 0) - 1;
+                    const isThinkingActive = conversation.loading && chunkIndex === displayChunks.length - 1;
                     const isExpanded = expandedThinkingIds.has(chunk.id);
                     const normalized = chunk.content.replace(/\s+/g, " ").trim();
                     const summary = normalized.length > 80 ? `${normalized.slice(0, 80)}...` : normalized || "思考中";
@@ -210,7 +229,7 @@ function Message({
                   }
                   if (chunk.type === 'tool_call' && chunk.toolCall) {
                     // 查找对应的 tool_result
-                    const toolResultChunk = question.messageChunks?.find(
+                    const toolResultChunk = displayChunks.find(
                       c => c.type === 'tool_result' && c.toolResult?.id === chunk.toolCall?.id
                     );
                     return (
