@@ -65,6 +65,9 @@ import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 import jakarta.transaction.Transactional;
+import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -73,10 +76,6 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-
-import java.util.*;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -959,8 +958,8 @@ public class ProductServiceImpl implements ProductService {
                                 p ->
                                         StrUtil.isBlank(param.getName())
                                                 || Optional.ofNullable(p.getName())
-                                                .orElse("")
-                                                .contains(param.getName()))
+                                                        .orElse("")
+                                                        .contains(param.getName()))
                         .collect(Collectors.toList());
 
         // Manual pagination

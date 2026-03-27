@@ -36,16 +36,15 @@ import com.alibaba.himarket.support.product.ModelFeature;
 import com.alibaba.himarket.support.product.ProductFeature;
 import com.github.benmanes.caffeine.cache.Cache;
 import io.agentscope.core.model.Model;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.web.util.UriComponentsBuilder;
-import reactor.core.publisher.Flux;
-
 import java.net.URI;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.util.UriComponentsBuilder;
+import reactor.core.publisher.Flux;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -58,7 +57,8 @@ public abstract class AbstractLlmService implements LlmService {
     private final Cache<String, List<URI>> gatewayUriCache = CacheUtil.newCache(5 * 60);
 
     @Override
-    public Flux<ChatEvent> invokeLlm(InvokeModelParam param, Consumer<LlmInvokeResult> resultHandler) {
+    public Flux<ChatEvent> invokeLlm(
+            InvokeModelParam param, Consumer<LlmInvokeResult> resultHandler) {
 
         // Create context to collect answer and usage
         ChatContext chatContext = new ChatContext(param.getChatId());
@@ -86,14 +86,16 @@ public abstract class AbstractLlmService implements LlmService {
                                             // Collect answer content
                                             .doOnNext(chatContext::collect),
                                     param.getChatId(),
-                                    chatContext
-                            )
-                    )
+                                    chatContext))
                     // Always emit DONE at the end
-                    .concatWith(Flux.defer(() -> {
-                        chatContext.stop();
-                        return Flux.just(ChatEvent.done(param.getChatId(), chatContext.getUsage()));
-                    }))
+                    .concatWith(
+                            Flux.defer(
+                                    () -> {
+                                        chatContext.stop();
+                                        return Flux.just(
+                                                ChatEvent.done(
+                                                        param.getChatId(), chatContext.getUsage()));
+                                    }))
                     // Unified result handling for all completion scenarios
                     .doFinally(signal -> resultHandler.accept(chatContext.toResult()));
 
@@ -215,34 +217,44 @@ public abstract class AbstractLlmService implements LlmService {
         }
 
         // Find matching route by keyword
-        HttpRouteResult route = modelAPIConfig.getRoutes().stream()
-                .filter(r ->
-                        Optional.ofNullable(r.getMatch())
-                                .map(HttpRouteResult.RouteMatchResult::getPath)
-                                .map(HttpRouteResult.RouteMatchPath::getValue)
-                                .filter(path -> path.contains(routeKeyword))
-                                .isPresent()
-                )
-                .findFirst()
-                .orElseGet(() -> modelAPIConfig.getRoutes().get(0));
+        HttpRouteResult route =
+                modelAPIConfig.getRoutes().stream()
+                        .filter(
+                                r ->
+                                        Optional.ofNullable(r.getMatch())
+                                                .map(HttpRouteResult.RouteMatchResult::getPath)
+                                                .map(HttpRouteResult.RouteMatchPath::getValue)
+                                                .filter(path -> path.contains(routeKeyword))
+                                                .isPresent())
+                        .findFirst()
+                        .orElseGet(() -> modelAPIConfig.getRoutes().get(0));
 
         // Get and process path
-        String path = Optional.ofNullable(route.getMatch())
-                .map(HttpRouteResult.RouteMatchResult::getPath)
-                .map(HttpRouteResult.RouteMatchPath::getValue)
-                .map(pathProcessor) // Apply path processor
-                .orElse(routeKeyword);
+        String path =
+                Optional.ofNullable(route.getMatch())
+                        .map(HttpRouteResult.RouteMatchResult::getPath)
+                        .map(HttpRouteResult.RouteMatchPath::getValue)
+                        .map(pathProcessor) // Apply path processor
+                        .orElse(routeKeyword);
 
         UriComponentsBuilder builder = UriComponentsBuilder.newInstance();
 
         // Try to get public domain first, fallback to first domain
-        DomainResult domain = route.getDomains().stream()
-                .filter(d -> !StrUtil.equalsIgnoreCase(d.getNetworkType(), "intranet"))
-                .findFirst()
-                .orElseGet(() -> ObjectUtil.isNotEmpty(route.getDomains()) ? route.getDomains().get(0) : null);
+        DomainResult domain =
+                route.getDomains().stream()
+                        .filter(d -> !StrUtil.equalsIgnoreCase(d.getNetworkType(), "intranet"))
+                        .findFirst()
+                        .orElseGet(
+                                () ->
+                                        ObjectUtil.isNotEmpty(route.getDomains())
+                                                ? route.getDomains().get(0)
+                                                : null);
 
         if (domain != null) {
-            String protocol = StrUtil.isNotBlank(domain.getProtocol()) ? domain.getProtocol().toLowerCase() : "http";
+            String protocol =
+                    StrUtil.isNotBlank(domain.getProtocol())
+                            ? domain.getProtocol().toLowerCase()
+                            : "http";
 
             builder.scheme(protocol).host(domain.getDomain());
 

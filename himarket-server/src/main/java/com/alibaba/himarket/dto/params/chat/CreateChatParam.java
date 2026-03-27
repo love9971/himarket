@@ -23,9 +23,8 @@ import com.alibaba.himarket.dto.converter.InputConverter;
 import com.alibaba.himarket.entity.Chat;
 import com.alibaba.himarket.support.chat.attachment.ChatAttachmentConfig;
 import jakarta.validation.constraints.NotBlank;
-import lombok.Data;
-
 import java.util.List;
+import lombok.Data;
 
 @Data
 public class CreateChatParam implements InputConverter<Chat> {

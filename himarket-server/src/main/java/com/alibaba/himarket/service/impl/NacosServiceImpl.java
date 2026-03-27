@@ -50,12 +50,10 @@ import com.alibaba.nacos.api.ai.model.a2a.AgentCard;
 import com.alibaba.nacos.api.ai.model.a2a.AgentCardVersionInfo;
 import com.alibaba.nacos.api.ai.model.mcp.McpServerBasicInfo;
 import com.alibaba.nacos.api.ai.model.mcp.McpServerDetailInfo;
-import com.alibaba.nacos.api.ai.model.skills.Skill;
 import com.alibaba.nacos.api.exception.NacosException;
 import com.alibaba.nacos.maintainer.client.ai.AiMaintainerFactory;
 import com.alibaba.nacos.maintainer.client.ai.AiMaintainerService;
 import com.alibaba.nacos.maintainer.client.ai.McpMaintainerService;
-import com.alibaba.nacos.maintainer.client.ai.SkillMaintainerService;
 import com.alibaba.nacos.maintainer.client.naming.NamingMaintainerFactory;
 import com.alibaba.nacos.maintainer.client.naming.NamingMaintainerService;
 import com.alibaba.nacos.maintainer.client.utils.ParamUtil;
@@ -65,16 +63,15 @@ import com.aliyun.mse20190531.models.ListClustersResponse;
 import com.aliyun.mse20190531.models.ListClustersResponseBody;
 import com.aliyun.teautil.models.RuntimeOptions;
 import jakarta.annotation.PostConstruct;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -217,12 +214,12 @@ public class NacosServiceImpl implements NacosService {
                                                                 String type =
                                                                         cluster.getClusterType();
                                                                 return (type == null
-                                                                        || "Nacos-Ans"
-                                                                        .equalsIgnoreCase(
-                                                                                type))
+                                                                                || "Nacos-Ans"
+                                                                                        .equalsIgnoreCase(
+                                                                                                type))
                                                                         && cluster.getVersionCode()
-                                                                        .startsWith(
-                                                                                "NACOS_3");
+                                                                                .startsWith(
+                                                                                        "NACOS_3");
                                                             })
                                                     .map(
                                                             MseNacosResult
@@ -340,7 +337,7 @@ public class NacosServiceImpl implements NacosService {
             serverConfig.setRawConfig(detail.getLocalServerConfig());
         } else if (detail.getRemoteServerConfig() != null
                 || (detail.getBackendEndpoints() != null
-                && !detail.getBackendEndpoints().isEmpty())) {
+                        && !detail.getBackendEndpoints().isEmpty())) {
             Object remoteConfig = buildRemoteConnectionConfig(detail);
             serverConfig.setRawConfig(remoteConfig);
         } else {
@@ -832,23 +829,23 @@ public class NacosServiceImpl implements NacosService {
             boolean exists =
                     namespaces != null
                             && namespaces.stream()
-                            .anyMatch(
-                                    ns -> {
-                                        try {
-                                            java.lang.reflect.Method getId =
-                                                    ns.getClass().getMethod("getNamespace");
-                                            Object id = getId.invoke(ns);
-                                            // Nacos 中 public namespace 的 ID 为空字符串
-                                            if ("public".equals(namespaceId)) {
-                                                return id == null
-                                                        || "".equals(id)
-                                                        || "public".equals(id);
-                                            }
-                                            return namespaceId.equals(id);
-                                        } catch (Exception e) {
-                                            return false;
-                                        }
-                                    });
+                                    .anyMatch(
+                                            ns -> {
+                                                try {
+                                                    java.lang.reflect.Method getId =
+                                                            ns.getClass().getMethod("getNamespace");
+                                                    Object id = getId.invoke(ns);
+                                                    // Nacos 中 public namespace 的 ID 为空字符串
+                                                    if ("public".equals(namespaceId)) {
+                                                        return id == null
+                                                                || "".equals(id)
+                                                                || "public".equals(id);
+                                                    }
+                                                    return namespaceId.equals(id);
+                                                } catch (Exception e) {
+                                                    return false;
+                                                }
+                                            });
             if (!exists) {
                 throw new BusinessException(ErrorCode.NOT_FOUND, "命名空间不存在: " + namespaceId);
             }

@@ -27,12 +27,17 @@ import com.alibaba.himarket.support.chat.ToolCallInfo;
 import com.alibaba.himarket.support.chat.attachment.ChatAttachmentConfig;
 import com.alibaba.himarket.support.enums.ChatStatus;
 import jakarta.persistence.*;
+import java.util.List;
 import lombok.*;
 
-import java.util.List;
-
 @Entity
-@Table(name = "chat", uniqueConstraints = {@UniqueConstraint(columnNames = {"chat_id"}, name = "uk_chat_id")})
+@Table(
+        name = "chat",
+        uniqueConstraints = {
+            @UniqueConstraint(
+                    columnNames = {"chat_id"},
+                    name = "uk_chat_id")
+        })
 @Data
 @EqualsAndHashCode(callSuper = true)
 @Builder

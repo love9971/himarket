@@ -48,6 +48,9 @@ jwt:
   secret: f0OnbLf28V4smHhNiokrw1jzotas+pz/as+CwBiHhWQ=
   expiration: 7d
 
+skill:
+  workDir: /app/workdir
+
 acp:
   terminal-enabled: false
   default-provider: qwen-code

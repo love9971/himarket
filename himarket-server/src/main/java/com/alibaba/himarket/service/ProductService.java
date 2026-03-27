@@ -26,10 +26,9 @@ import com.alibaba.himarket.dto.result.product.ProductPublicationResult;
 import com.alibaba.himarket.dto.result.product.ProductRefResult;
 import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.dto.result.product.SubscriptionResult;
+import com.alibaba.himarket.entity.Product;
 import java.util.List;
 import java.util.Map;
-
-import com.alibaba.himarket.entity.Product;
 import org.springframework.data.domain.Pageable;
 
 public interface ProductService {

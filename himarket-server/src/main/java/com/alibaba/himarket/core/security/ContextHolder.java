@@ -19,7 +19,6 @@
 
 package com.alibaba.himarket.core.security;
 
-import cn.hutool.core.util.EnumUtil;
 import com.alibaba.himarket.core.constant.CommonConstants;
 import com.alibaba.himarket.support.enums.UserType;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;

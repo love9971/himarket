@@ -5,10 +5,9 @@ import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.nacos.api.ai.model.skills.Skill;
 import io.agentscope.core.message.Msg;
+import java.util.List;
 import lombok.Builder;
 import lombok.Data;
-
-import java.util.List;
 
 @Data
 @Builder

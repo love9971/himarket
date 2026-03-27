@@ -4,13 +4,12 @@ import com.alibaba.himarket.dto.result.product.ProductResult;
 import com.alibaba.himarket.support.chat.mcp.MCPTransportConfig;
 import com.alibaba.nacos.api.ai.model.skills.Skill;
 import io.agentscope.core.message.Msg;
-import lombok.Builder;
-import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
-
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import lombok.Builder;
+import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 @Builder
 @Slf4j

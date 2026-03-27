@@ -21,6 +21,7 @@ package com.alibaba.himarket.service.hichat.manager;
 import cn.hutool.core.collection.CollUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.crypto.SecureUtil;
+import com.alibaba.himarket.config.SkillProperties;
 import com.alibaba.himarket.core.event.McpClientRemovedEvent;
 import com.alibaba.himarket.core.utils.CacheUtil;
 import com.alibaba.himarket.dto.result.product.ProductResult;
@@ -42,6 +43,12 @@ import io.agentscope.core.tool.Toolkit;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import io.agentscope.core.tool.mcp.McpTool;
 import io.modelcontextprotocol.spec.McpSchema;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RegExUtils;
@@ -51,17 +58,12 @@ import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
-
 @Slf4j
 @Component
 @RequiredArgsConstructor
 public class ChatBotManager {
+
+    private final SkillProperties skillProperties;
 
     private final ToolManager toolManager;
     private final Cache<String, ChatBot> chatBotCache = CacheUtil.newLRUCache(10 * 60);
@@ -117,7 +119,8 @@ public class ChatBotManager {
                 // Register mapping relationship
                 int mcpCount = registerToolDependencies(cacheKey, request.getMcpConfigs());
 
-                log.info("Created new ChatBot for session: {}, degraded: {}, MCPs: {}",
+                log.info(
+                        "Created new ChatBot for session: {}, degraded: {}, MCPs: {}",
                         sessionId,
                         chatBot.isDegraded(),
                         mcpCount);
@@ -157,8 +160,14 @@ public class ChatBotManager {
 
         // get and register skill tools
         SkillBox skillBox = new SkillBox(toolkit);
-        registerSkills(skillBox, request);
+        skillBox.codeExecution()
+                .workDir(this.skillProperties.getWorkDir())
+                .withShell()
+                .withRead()
+                .withWrite()
+                .enable();
 
+        registerSkills(skillBox, request);
 
         // Initialize memory
         Memory memory = createMemory(request.getHistoryMessages());
@@ -204,23 +213,31 @@ public class ChatBotManager {
             return;
         }
 
-        skills.forEach(skillConfig -> {
-            AgentSkill.Builder builder = AgentSkill.builder()
-                    .name(skillConfig.getName())
-                    .description(skillConfig.getDescription())
-                    .skillContent(skillConfig.getInstruction());
+        skills.forEach(
+                skillConfig -> {
+                    AgentSkill.Builder builder =
+                            AgentSkill.builder()
+                                    .name(skillConfig.getName())
+                                    .description(skillConfig.getDescription())
+                                    .skillContent(skillConfig.getInstruction());
 
-            if (CollUtil.isNotEmpty(skillConfig.getResource())) {
-                skillConfig.getResource().forEach((name, resource) -> {
-                    String resourceIdentifier = resource.getResourceIdentifier();
-                    String path = RegExUtils.replaceFirst(resourceIdentifier, ":", "/");
-                    builder.addResource(path, resource.getContent());
+                    if (CollUtil.isNotEmpty(skillConfig.getResource())) {
+                        skillConfig
+                                .getResource()
+                                .forEach(
+                                        (name, resource) -> {
+                                            String resourceIdentifier =
+                                                    resource.getResourceIdentifier();
+                                            String path =
+                                                    RegExUtils.replaceFirst(
+                                                            resourceIdentifier, "::", "/");
+                                            builder.addResource(path, resource.getContent());
+                                        });
+                    }
+
+                    AgentSkill skill = builder.build();
+                    skillBox.registerSkill(skill);
                 });
-            }
-
-            AgentSkill skill = builder.build();
-            skillBox.registerSkill(skill);
-        });
     }
 
     /**
@@ -272,7 +289,7 @@ public class ChatBotManager {
                                                     error ->
                                                             log.error(
                                                                     "Failed to list tools from MCP"
-                                                                            + " server: {}, error: {}",
+                                                                        + " server: {}, error: {}",
                                                                     client.getName(),
                                                                     error.getMessage()))
                                             .onErrorResume(error -> Mono.empty());
@@ -560,10 +577,14 @@ public class ChatBotManager {
         // skills
         sb.append("skills:");
         if (CollUtil.isNotEmpty(request.getSkills())) {
-            request.getSkills().forEach(skill -> {
-                String format = String.format("%s~%s", skill.getNamespaceId(), skill.getName());
-                sb.append(format);
-            });
+            request.getSkills()
+                    .forEach(
+                            skill -> {
+                                String format =
+                                        String.format(
+                                                "%s~%s", skill.getNamespaceId(), skill.getName());
+                                sb.append(format);
+                            });
         } else {
             sb.append("none");
         }
