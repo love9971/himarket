@@ -43,12 +43,6 @@ import io.agentscope.core.tool.Toolkit;
 import io.agentscope.core.tool.mcp.McpClientWrapper;
 import io.agentscope.core.tool.mcp.McpTool;
 import io.modelcontextprotocol.spec.McpSchema;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.RegExUtils;
@@ -57,6 +51,13 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -219,7 +220,7 @@ public class ChatBotManager {
                             AgentSkill.builder()
                                     .name(skillConfig.getName())
                                     .description(skillConfig.getDescription())
-                                    .skillContent(skillConfig.getInstruction());
+                                    .skillContent(skillConfig.getSkillMd());
 
                     if (CollUtil.isNotEmpty(skillConfig.getResource())) {
                         skillConfig
@@ -289,7 +290,7 @@ public class ChatBotManager {
                                                     error ->
                                                             log.error(
                                                                     "Failed to list tools from MCP"
-                                                                        + " server: {}, error: {}",
+                                                                            + " server: {}, error: {}",
                                                                     client.getName(),
                                                                     error.getMessage()))
                                             .onErrorResume(error -> Mono.empty());

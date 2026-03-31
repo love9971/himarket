@@ -54,9 +54,6 @@ import com.alibaba.himarket.support.product.ProductFeature;
 import com.alibaba.himarket.support.product.SkillConfig;
 import com.alibaba.nacos.api.ai.model.skills.Skill;
 import io.agentscope.core.message.*;
-import java.nio.charset.StandardCharsets;
-import java.util.*;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -65,6 +62,10 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import reactor.core.publisher.Flux;
+
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -216,7 +217,8 @@ public class ChatService {
                             return this.skillService.getSkillDetail(
                                     skillConfig.getNacosId(),
                                     skillConfig.getNamespace(),
-                                    skillConfig.getSkillName());
+                                    skillConfig.getSkillName(),
+                                    null);
                         })
                 .collect(Collectors.toList());
     }
