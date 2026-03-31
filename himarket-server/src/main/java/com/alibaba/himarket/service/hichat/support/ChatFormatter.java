@@ -18,7 +18,7 @@
  */
 package com.alibaba.himarket.service.hichat.support;
 
-import cn.hutool.core.util.StrUtil;
+import cn.hutool.core.text.CharSequenceUtil;
 import cn.hutool.json.JSONUtil;
 import com.alibaba.himarket.support.chat.ChatUsage;
 import io.agentscope.core.agent.Event;
@@ -27,10 +27,11 @@ import io.agentscope.core.message.Msg;
 import io.agentscope.core.message.ThinkingBlock;
 import io.agentscope.core.message.ToolResultBlock;
 import io.agentscope.core.message.ToolUseBlock;
-import java.util.ArrayList;
-import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import reactor.core.publisher.Flux;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Formats AgentScope events into HiChat events for frontend streaming.
@@ -47,7 +48,9 @@ import reactor.core.publisher.Flux;
 @Slf4j
 public class ChatFormatter {
 
-    /** Tracks whether any text content has been streamed (via isLast=false REASONING events) */
+    /**
+     * Tracks whether any text content has been streamed (via isLast=false REASONING events)
+     */
     private boolean hasStreamedText = false;
 
     public Flux<ChatEvent> format(Event event, ChatContext chatContext) {
@@ -61,28 +64,21 @@ public class ChatFormatter {
                     event.isLast(),
                     JSONUtil.toJsonStr(msg));
 
-            switch (type) {
-                case REASONING:
-                    return handleReasoning(msg, event.isLast(), chatContext);
-
-                case TOOL_RESULT:
-                    return handleToolResult(msg, chatContext);
-
-                case SUMMARY:
-                    return handleSummary(msg, chatContext);
-
-                case AGENT_RESULT:
-                    return handleAgentResult(msg, chatContext);
-
-                case HINT:
+            return switch (type) {
+                case REASONING -> handleReasoning(msg, event.isLast(), chatContext);
+                case TOOL_RESULT -> handleToolResult(msg, chatContext);
+                case SUMMARY -> handleSummary(msg, chatContext);
+                case AGENT_RESULT -> handleAgentResult(msg, chatContext);
+                case HINT -> {
                     // Skip internal events (RAG context)
                     log.debug("Skipping HINT event (internal)");
-                    return Flux.empty();
-
-                default:
+                    yield Flux.empty();
+                }
+                default -> {
                     log.debug("Skipping unknown event type: {}", type);
-                    return Flux.empty();
-            }
+                    yield Flux.empty();
+                }
+            };
 
         } catch (Exception e) {
             log.error("Error converting event to ChatEvent", e);
@@ -97,15 +93,17 @@ public class ChatFormatter {
 
         // 1. Extract thinking content
         List<ThinkingBlock> thinkingBlocks = msg.getContentBlocks(ThinkingBlock.class);
-        for (ThinkingBlock thinking : thinkingBlocks) {
-            if (StrUtil.isNotBlank(thinking.getThinking())) {
-                chunks.add(ChatEvent.thinking(chatId, thinking.getThinking()));
+        if (!isLast) {
+            for (ThinkingBlock thinking : thinkingBlocks) {
+                if (CharSequenceUtil.isNotBlank(thinking.getThinking())) {
+                    chunks.add(ChatEvent.thinking(chatId, thinking.getThinking()));
+                }
             }
         }
 
         // 2. Extract text content (model's response)
         String textContent = msg.getTextContent();
-        if (StrUtil.isNotBlank(textContent)) {
+        if (CharSequenceUtil.isNotBlank(textContent)) {
             if (isLast) {
                 getUsage(msg, chatContext);
                 if (hasStreamedText) {
@@ -189,7 +187,7 @@ public class ChatFormatter {
         getUsage(msg, chatContext);
 
         // Send summary text if available
-        if (msg != null && StrUtil.isNotBlank(msg.getTextContent())) {
+        if (msg != null && CharSequenceUtil.isNotBlank(msg.getTextContent())) {
             return Flux.just(ChatEvent.text(chatContext.getChatId(), msg.getTextContent()));
         }
         return Flux.empty();
@@ -213,7 +211,7 @@ public class ChatFormatter {
      *   <li>AGENT_RESULT - final complete result</li>
      * </ul>
      *
-     * @param msg message containing usage info
+     * @param msg         message containing usage info
      * @param chatContext context to save usage to
      */
     private void getUsage(Msg msg, ChatContext chatContext) {
