@@ -121,6 +121,10 @@ export interface IAnswerV2 {
   content: string;
   usage?: IChatUsage;
   toolCalls?: IToolCallInfo[];
+  messageChunks?: Array<{
+    content: string;
+    eventType: string;
+  }>;
 }
 
 export interface IQuestionV2 {

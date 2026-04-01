@@ -4,7 +4,7 @@ import { chatReducer, type ChatAction } from "./useChatReducer";
 import { generateConversationId, generateQuestionId } from "../lib/uuid";
 import { handleSSEStream } from "../lib/sse";
 import APIs, { type IProductConversations, type IProductDetail, type IAttachment } from "../lib/apis";
-import type { IModelConversation, IMcpToolCall, IMcpToolResponse } from "../types";
+import type { IModelConversation, IMcpToolCall, IMcpToolResponse, IMessageChunk } from "../types";
 import type { SSEOptions } from "../lib/sse";
 
 // ============ SSE Callbacks Factory ============
@@ -28,6 +28,9 @@ function createSSECallbacks(ctx: SSEContext): SSEOptions {
     onToolResponse: (toolResponse: IMcpToolResponse) => {
       setIsMcpExecuting(false);
       dispatch({ type: 'ADD_TOOL_RESPONSE', payload: { modelId, conversationId, questionId, toolResponse } });
+    },
+    onThinking: (content: string) => {
+      dispatch({ type: 'APPEND_THINKING_CHUNK', payload: { modelId, conversationId, questionId, content } });
     },
     onChunk: (chunk: string) => {
       fullContentRef.current += chunk;
@@ -310,6 +313,101 @@ export function useChatSession() {
                 .filter(tc => tc.result !== undefined && tc.result !== null)
                 .map(tc => ({ id: tc.id, name: tc.name, result: tc.result }));
 
+              // 构建 messageChunks：从 answer.content 中解析 thinking、text 和 tool_call 内容
+              const messageChunks: IMessageChunk[] = [];
+              
+              // 处理所有答案，提取 messageChunks
+              question.answers.forEach((answer, ansIdx) => {
+                // 尝试解析 answer.content，它是 JSON 数组字符串
+                // 格式：[{"content":"...","eventType":"THINKING"},{"content":{...},"eventType":"TOOL_CALL"},...]
+                let parsedContent: Array<{ content: string | Record<string, unknown>; eventType: string }> | null = null;
+                
+                try {
+                  if (answer.content && typeof answer.content === 'string') {
+                    // 第一次解析：得到字符串数组
+                    const outerArray = JSON.parse(answer.content);
+                    
+                    if (Array.isArray(outerArray)) {
+                      // 第二次解析：数组中的每个元素也是 JSON 字符串
+                      parsedContent = outerArray.map((item: string) => {
+                        if (typeof item === 'string') {
+                          return JSON.parse(item);
+                        }
+                        return item;
+                      });
+                    }
+                  }
+                } catch (e) {
+                  console.error('[ChatSession] Parse error:', e);
+                  // 解析失败，按普通文本处理
+                }
+                
+                if (parsedContent && Array.isArray(parsedContent)) {
+                  // 新格式：解析 JSON 数组
+                  parsedContent.forEach((item, idx) => {
+                    if (item.eventType === 'THINKING' && typeof item.content === 'string') {
+                      messageChunks.push({
+                        id: `chunk-thinking-${ansIdx}-${idx}`,
+                        type: 'thinking',
+                        content: item.content,
+                      });
+                    } else if (item.eventType === 'ASSISTANT' && typeof item.content === 'string') {
+                      messageChunks.push({
+                        id: `chunk-text-${ansIdx}-${idx}`,
+                        type: 'text',
+                        content: item.content,
+                      });
+                    } else if (item.eventType === 'TOOL_CALL' && typeof item.content === 'object') {
+                      // TOOL_CALL: 创建 tool_call chunk
+                      const toolCallContent = item.content as Record<string, unknown>;
+                      const toolCall: IMcpToolCall = {
+                        id: String(toolCallContent.id || `tool-${ansIdx}-${idx}`),
+                        type: 'function',
+                        name: String(toolCallContent.name || ''),
+                        arguments: toolCallContent.arguments as Record<string, unknown> || {},
+                        mcpServerName: toolCallContent.mcpServerName as string | undefined,
+                      };
+                      messageChunks.push({
+                        id: `chunk-toolcall-${ansIdx}-${idx}`,
+                        type: 'tool_call',
+                        toolCall,
+                      });
+                    } else if (item.eventType === 'TOOL_RESULT' && typeof item.content === 'object') {
+                      // TOOL_RESULT: 创建 tool_result chunk
+                      const toolResultContent = item.content as Record<string, unknown>;
+                      const toolResult: IMcpToolResponse = {
+                        id: String(toolResultContent.id || `tool-${ansIdx}-${idx}`),
+                        name: String(toolResultContent.name || ''),
+                        result: toolResultContent.result ?? toolResultContent,
+                      };
+                      messageChunks.push({
+                        id: `chunk-toolresult-${ansIdx}-${idx}`,
+                        type: 'tool_result',
+                        toolResult,
+                      });
+                    }
+                  });
+                } else if (answer.content) {
+                  // 旧格式：直接作为 text 内容
+                  if (messageChunks.length === 0 || messageChunks[messageChunks.length - 1]?.type !== 'text') {
+                    messageChunks.push({
+                      id: `chunk-text-${ansIdx}`,
+                      type: 'text',
+                      content: answer.content,
+                    });
+                  } else {
+                    // 合并到最后一个 text chunk
+                    const lastIdx = messageChunks.length - 1;
+                    messageChunks[lastIdx] = {
+                      ...messageChunks[lastIdx],
+                      content: (messageChunks[lastIdx].content || '') + answer.content,
+                    };
+                  }
+                }
+              });
+              
+              console.log('[ChatSession] Final messageChunks:', messageChunks.length, messageChunks.map(c => c.type));
+
               return {
                 id: question.questionId,
                 content: question.content,
@@ -319,6 +417,7 @@ export function useChatSession() {
                 attachments: question.attachments,
                 mcpToolCalls: mcpToolCalls.length > 0 ? mcpToolCalls : undefined,
                 mcpToolResponses: mcpToolResponses.length > 0 ? mcpToolResponses : undefined,
+                messageChunks: messageChunks.length > 0 ? messageChunks : undefined,
                 answers: question.answers.map(answer => ({
                   errorMsg: "",
                   content: answer.content,

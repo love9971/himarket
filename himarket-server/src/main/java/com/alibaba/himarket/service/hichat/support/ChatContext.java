@@ -116,27 +116,10 @@ public class ChatContext {
             this.currentEventType = event.getType();
         }
 
-        if (this.currentEventType != event.getType()) {
-            if (
-                    (
-                            this.currentEventType == ChatEvent.EventType.TOOL_CALL
-                                    ||
-                                    this.currentEventType == ChatEvent.EventType.TOOL_RESULT
-                    )
-                            &&
-                            (
-                                    event.getType() == ChatEvent.EventType.TOOL_CALL
-                                            ||
-                                            event.getType() == ChatEvent.EventType.TOOL_RESULT
-                            )
-
-            ) {
-                // nothing to do
-            } else if (this.currentContent != null) {
-                this.contents.add(this.currentContent);
-                this.currentContent = null;
-                this.currentEventType = event.getType();
-            }
+        if (this.currentEventType != event.getType() && this.currentContent != null) {
+            this.contents.add(this.currentContent);
+            this.currentContent = null;
+            this.currentEventType = event.getType();
         }
 
 

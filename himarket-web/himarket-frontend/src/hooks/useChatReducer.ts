@@ -22,6 +22,12 @@ export type ChatAction =
       chunk: string;
       fullContent: string;
     }}
+  | { type: 'APPEND_THINKING_CHUNK'; payload: {
+      modelId: string;
+      conversationId: string;
+      questionId: string;
+      content: string;
+    }}
   | { type: 'ADD_TOOL_CALL'; payload: {
       modelId: string;
       conversationId: string;
@@ -198,6 +204,38 @@ export function chatReducer(state: IModelConversation[], action: ChatAction): IM
           }],
         }),
         () => ({ loading: false }),
+      );
+    }
+
+    case 'APPEND_THINKING_CHUNK': {
+      const { modelId, conversationId, questionId, content } = action.payload;
+      return updateQuestion(state, modelId, conversationId, questionId,
+        (question) => {
+          const chunks = question.messageChunks || [];
+          const lastChunk = chunks[chunks.length - 1];
+          
+          // 如果最后一个是 thinking 类型，合并内容；否则创建新的 thinking chunk
+          let newChunks: IMessageChunk[];
+          if (lastChunk && lastChunk.type === 'thinking') {
+            newChunks = chunks.map((c, i) =>
+              i === chunks.length - 1
+                ? { ...c, content: (c.content || '') + content }
+                : c
+            );
+          } else {
+            newChunks = [...chunks, {
+              id: `chunk-thinking-${Date.now()}`,
+              type: 'thinking' as const,
+              content: content,
+            }];
+          }
+          
+          return {
+            ...question,
+            messageChunks: newChunks,
+          };
+        },
+        () => ({ loading: true }),
       );
     }
 
