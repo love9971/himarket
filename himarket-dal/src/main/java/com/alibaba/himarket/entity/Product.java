@@ -68,6 +68,9 @@ public class Product extends BaseEntity {
     @Column(name = "document", columnDefinition = "longtext")
     private String document;
 
+    @Column(name = "prompt", columnDefinition = "text")
+    private String prompt;
+
     @Column(name = "icon", columnDefinition = "json")
     @Convert(converter = IconConverter.class)
     private Icon icon;

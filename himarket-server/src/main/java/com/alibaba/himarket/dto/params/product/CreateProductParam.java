@@ -29,8 +29,9 @@ import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
-import java.util.List;
 import lombok.Data;
+
+import java.util.List;
 
 @Data
 public class CreateProductParam implements InputConverter<Product> {
@@ -46,6 +47,8 @@ public class CreateProductParam implements InputConverter<Product> {
     private ProductType type;
 
     private String document;
+
+    private String prompt;
 
     private Icon icon;
 

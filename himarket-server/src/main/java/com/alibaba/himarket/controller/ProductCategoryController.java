@@ -30,11 +30,12 @@ import com.alibaba.himarket.service.ProductCategoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Pageable;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @Tag(name = "产品类别管理", description = "提供产品类别的创建、更新、删除、查询等管理功能")
 @RestController
@@ -59,6 +60,13 @@ public class ProductCategoryController {
     public PageResult<ProductCategoryResult> listProductCategories(
             QueryProductCategoryParam param, Pageable pageable) {
         return productCategoryService.listProductCategories(param, pageable);
+    }
+
+    @Operation(summary = "获取产品类别列表")
+    @GetMapping
+    @PublicAccess
+    public List<ProductCategoryResult> listProductCategories(@RequestParam(defaultValue = "10") Integer limit) {
+        return productCategoryService.listProductCategories(limit);
     }
 
     @Operation(summary = "更新产品类别")

@@ -41,20 +41,16 @@ import com.alibaba.himarket.support.enums.ProductType;
 import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -99,6 +95,23 @@ public class ProductCategoryServiceImpl implements ProductCategoryService {
         return new PageResult<ProductCategoryResult>()
                 .convertFrom(
                         categories, category -> new ProductCategoryResult().convertFrom(category));
+    }
+
+    /**
+     * List all product categories.
+     *
+     * @param limit
+     * @return
+     */
+    @Override
+    public List<ProductCategoryResult> listProductCategories(Integer limit) {
+        Pageable pageable = PageRequest.of(0, limit);
+        List<ProductCategory> list = this.categoryRepository.findByOrderByIdDesc(pageable);
+        if (CollUtil.isEmpty(list)) {
+            return Collections.emptyList();
+        }
+
+        return list.stream().map(category -> new ProductCategoryResult().convertFrom(category)).collect(Collectors.toList());
     }
 
     @Override

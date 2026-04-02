@@ -24,9 +24,10 @@ import com.alibaba.himarket.dto.params.category.QueryProductCategoryParam;
 import com.alibaba.himarket.dto.params.category.UpdateProductCategoryParam;
 import com.alibaba.himarket.dto.result.ProductCategoryResult;
 import com.alibaba.himarket.dto.result.common.PageResult;
+import org.springframework.data.domain.Pageable;
+
 import java.util.List;
 import java.util.Map;
-import org.springframework.data.domain.Pageable;
 
 public interface ProductCategoryService {
 
@@ -47,6 +48,14 @@ public interface ProductCategoryService {
      */
     PageResult<ProductCategoryResult> listProductCategories(
             QueryProductCategoryParam param, Pageable pageable);
+
+    /**
+     * List all product categories.
+     *
+     * @param limit
+     * @return
+     */
+    List<ProductCategoryResult> listProductCategories(Integer limit);
 
     /**
      * Delete a product category.

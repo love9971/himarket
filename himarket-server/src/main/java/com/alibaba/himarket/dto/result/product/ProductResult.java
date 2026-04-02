@@ -53,6 +53,8 @@ public class ProductResult implements OutputConverter<ProductResult, Product> {
 
     private String document;
 
+    private String prompt;
+
     private Icon icon;
 
     private List<ProductCategoryResult> categories;
