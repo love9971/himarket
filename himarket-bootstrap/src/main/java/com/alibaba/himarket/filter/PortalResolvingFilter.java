@@ -19,6 +19,7 @@
 
 package com.alibaba.himarket.filter;
 
+import cn.hutool.core.text.CharSequenceUtil;
 import cn.hutool.core.util.StrUtil;
 import com.alibaba.himarket.core.security.ContextHolder;
 import com.alibaba.himarket.service.PortalService;
@@ -26,12 +27,13 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.net.URI;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.web.filter.OncePerRequestFilter;
+
+import java.io.IOException;
+import java.net.URI;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -85,13 +87,13 @@ public class PortalResolvingFilter extends OncePerRequestFilter {
             }
             String portalId = portalService.resolvePortal(domain);
 
-            if (StrUtil.isNotBlank(portalId)) {
+            if (CharSequenceUtil.isNotBlank(portalId)) {
                 contextHolder.savePortal(portalId);
                 log.debug("Resolved portal for domain: {} with portalId: {}", domain, portalId);
             } else {
                 log.debug("No portal found for domain: {}", domain);
                 String defaultPortalId = portalService.getDefaultPortal();
-                if (StrUtil.isNotBlank(defaultPortalId)) {
+                if (CharSequenceUtil.isNotBlank(defaultPortalId)) {
                     contextHolder.savePortal(defaultPortalId);
                     log.debug("Use default portal: {}", defaultPortalId);
                 }

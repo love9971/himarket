@@ -20,6 +20,7 @@
 package com.alibaba.himarket.service.impl;
 
 import cn.hutool.core.collection.CollUtil;
+import cn.hutool.core.text.CharSequenceUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.extra.spring.SpringUtil;
 import cn.hutool.json.JSONUtil;
@@ -922,7 +923,7 @@ public class ProductServiceImpl implements ProductService {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
 
-            if (StrUtil.isNotBlank(param.getPortalId())) {
+            if (CharSequenceUtil.isNotBlank(param.getPortalId())) {
                 Subquery<String> subquery = query.subquery(String.class);
                 Root<ProductPublication> publicationRoot = subquery.from(ProductPublication.class);
                 subquery.select(publicationRoot.get("productId"))
@@ -938,7 +939,7 @@ public class ProductServiceImpl implements ProductService {
                 predicates.add(cb.equal(root.get("status"), param.getStatus()));
             }
 
-            if (StrUtil.isNotBlank(param.getName())) {
+            if (CharSequenceUtil.isNotBlank(param.getName())) {
                 String likePattern = "%" + param.getName() + "%";
                 predicates.add(cb.like(root.get("name"), likePattern));
             }
@@ -952,7 +953,7 @@ public class ProductServiceImpl implements ProductService {
                 predicates.add(root.get("productId").in(subquery));
             }
 
-            if (StrUtil.isNotBlank(param.getExcludeCategoryId())) {
+            if (CharSequenceUtil.isNotBlank(param.getExcludeCategoryId())) {
                 Subquery<String> subquery = query.subquery(String.class);
                 Root<ProductCategoryRelation> relationRoot =
                         subquery.from(ProductCategoryRelation.class);

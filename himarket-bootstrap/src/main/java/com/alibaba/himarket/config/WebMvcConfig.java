@@ -50,8 +50,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addArgumentResolvers(@NotNull List<HandlerMethodArgumentResolver> resolvers) {
         // Add pageable resolver
-        PageableHandlerMethodArgumentResolver resolver =
-                new PageableHandlerMethodArgumentResolver();
+        PageableHandlerMethodArgumentResolver resolver = new PageableHandlerMethodArgumentResolver();
         // Default page size is 100
         resolver.setFallbackPageable(
                 PageRequest.of(0, 100, Sort.by(Sort.Direction.DESC, "createAt")));

@@ -63,7 +63,7 @@ public class ProductCategoryController {
     }
 
     @Operation(summary = "获取产品类别列表")
-    @GetMapping
+    @GetMapping("/list")
     @PublicAccess
     public List<ProductCategoryResult> listProductCategories(@RequestParam(defaultValue = "10") Integer limit) {
         return productCategoryService.listProductCategories(limit);
