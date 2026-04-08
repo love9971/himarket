@@ -36,6 +36,10 @@ import com.alibaba.himarket.support.product.ModelFeature;
 import com.alibaba.himarket.support.product.ProductFeature;
 import com.github.benmanes.caffeine.cache.Cache;
 import io.agentscope.core.model.Model;
+import java.net.URI;
+import java.util.*;
+import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -208,7 +212,7 @@ public abstract class AbstractLlmService implements LlmService {
             ModelConfigResult modelConfig,
             List<URI> gatewayUris,
             String routeKeyword,
-            Function<String, String> pathProcessor) {
+            BiFunction<String, String, String> pathProcessor) {
 
         ModelConfigResult.ModelAPIConfig modelAPIConfig = modelConfig.getModelAPIConfig();
         if (modelAPIConfig == null || CollUtil.isEmpty(modelAPIConfig.getRoutes())) {
@@ -231,10 +235,17 @@ public abstract class AbstractLlmService implements LlmService {
 
         // Get and process path
         String path =
-                Optional.ofNullable(route.getMatch())
-                        .map(HttpRouteResult.RouteMatchResult::getPath)
-                        .map(HttpRouteResult.RouteMatchPath::getValue)
-                        .map(pathProcessor) // Apply path processor
+                java.util.Optional.ofNullable(route.getMatch())
+                        .map(
+                                com.alibaba.himarket.dto.result.httpapi.HttpRouteResult
+                                                .RouteMatchResult
+                                        ::getPath)
+                        .map(
+                                routeMatchPath -> {
+                                    String pathValue = routeMatchPath.getValue();
+                                    String pathType = routeMatchPath.getType();
+                                    return pathProcessor.apply(pathValue, pathType);
+                                })
                         .orElse(routeKeyword);
 
         UriComponentsBuilder builder = UriComponentsBuilder.newInstance();
