@@ -91,8 +91,13 @@ public class ChatService {
     public Flux<ChatEvent> chat(CreateChatParam param) {
         performAllChecks(param);
 
+        //创建会话
         Chat chat = createChat(param);
+
+        //构建调用模型参数
         InvokeModelParam invokeModelParam = buildInvokeModelParam(param, chat);
+
+        //调用模型并返回结果
         LlmService llmService = getLlmService(invokeModelParam);
         return llmService.invokeLlm(invokeModelParam, r -> updateChatResult(chat.getChatId(), r));
     }
@@ -106,7 +111,7 @@ public class ChatService {
                             chat.setStatus(
                                     result.isSuccess() ? ChatStatus.SUCCESS : ChatStatus.FAILED);
                             chat.setChatUsage(result.getUsage());
-//                            chat.setToolCalls(result.getToolCalls());
+                            chat.setToolCalls(result.getToolCalls());
                             chatRepository.save(chat);
                         });
     }
@@ -155,33 +160,31 @@ public class ChatService {
         chat.setUserId(contextHolder.getUser());
 
         // Sequence represent the number of tries for this question
-        Integer sequence =
-                chatRepository.findCurrentSequence(
-                        param.getSessionId(),
-                        param.getConversationId(),
-                        param.getQuestionId(),
-                        param.getProductId());
+        Integer sequence = chatRepository.findCurrentSequence(
+                param.getSessionId(),
+                param.getConversationId(),
+                param.getQuestionId(),
+                param.getProductId());
 
         chat.setSequence(sequence + 1);
         return chatRepository.save(chat);
     }
 
     private InvokeModelParam buildInvokeModelParam(CreateChatParam param, Chat chat) {
-        // Get product config
+        // 获取Product配置
         ProductResult productResult = productService.getProduct(param.getProductId());
 
-        // Record target gateway
+        // 目标网关
         ProductRefResult productRef = productService.getProductRef(param.getProductId());
         String gatewayId = productRef.getGatewayId();
 
-        // get skills from product config if not specified in request
+        // 加载skills配置
         List<Skill> skills = loadSkillsConfig(param);
 
-        // Get authentication info
-        CredentialContext credentialContext =
-                consumerService.getDefaultCredential(contextHolder.getUser());
+        // 凭证
+        CredentialContext credentialContext = consumerService.getDefaultCredential(contextHolder.getUser());
 
-        // Build user msg and history msg list which will be passed to model
+        // 构建将传递给模型的用户msg和历史msg列表
         List<Msg> historyMsgList = buildHistoryMsgList(param);
         Msg currentMsg = buildUserMsg(chat);
 
@@ -417,8 +420,8 @@ public class ChatService {
         return messages;
     }
 
-    private List<MCPTransportConfig> buildMCPConfigs(
-            CreateChatParam param, CredentialContext credentialContext) {
+    private List<MCPTransportConfig> buildMCPConfigs(CreateChatParam param, CredentialContext credentialContext) {
+
         if (CollUtil.isEmpty(param.getMcpProducts())) {
             return CollUtil.empty(List.class);
         }

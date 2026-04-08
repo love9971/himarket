@@ -269,7 +269,7 @@ public class ChatContext {
                 .success(success)
                 .answer(getAnswer())
                 .usage(usage)
-//                .toolCalls(getToolCalls())
+                .toolCalls(getToolCalls())
                 .build();
     }
 

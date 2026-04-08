@@ -20,9 +20,12 @@
 package com.alibaba.himarket.dto.result.chat;
 
 import com.alibaba.himarket.support.chat.ChatUsage;
+import com.alibaba.himarket.support.chat.ToolCallInfo;
 import lombok.Builder;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+
+import java.util.List;
 
 @Data
 @Builder
@@ -40,9 +43,9 @@ public class LlmInvokeResult {
      * Usage, exists only when success
      */
     private ChatUsage usage;
-//
-//    /**
-//     * Tool calls (tool call and result pairs)
-//     */
-//    private List<ToolCallInfo> toolCalls;
+
+    /**
+     * Tool calls (tool call and result pairs)
+     */
+    private List<ToolCallInfo> toolCalls;
 }

@@ -183,12 +183,12 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public ProductResult getProduct(String productId) {
-        Product product =
-                contextHolder.isAdministrator()
-                        ? findProduct(productId)
-                        : findPublishedProduct(contextHolder.getPortal(), productId);
+        //数据权限
+        Product product = contextHolder.isAdministrator()
+                ? findProduct(productId)
+                : findPublishedProduct(contextHolder.getPortal(), productId);
 
-        // Trigger async sync if not synced recently (cache miss)
+        // 如果没有同步（缓存丢失），触发异步同步
         if (productSyncCache.getIfPresent(productId) == null) {
             productRefRepository
                     .findByProductId(productId)
