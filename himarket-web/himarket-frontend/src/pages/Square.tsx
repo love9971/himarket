@@ -96,7 +96,8 @@ function Square(props: { activeType: string }) {
       const productType = activeType;
       const categoryIds = activeCategory === "all" ? undefined : [activeCategory];
       const name = (searchText ?? "").trim() || undefined;
-      const pageIndex = (page ?? currentPage) - 1;
+      // page 从 0 开始，currentPage 从 1 开始
+      const pageIndex = (page ?? currentPage);
 
       const response = await APIs.getProducts({
         type: productType,
